@@ -14,8 +14,8 @@ for(y in c(1, 5, 10, 15, 20)) {
                             locations = plant_points,
                             obstructions = building,
                             boundary = site_boundary,
-                            hex_gridshape = FALSE,
-                            approx_cellarea = 10)
+                            hex_gridshape = TRUE,
+                            cellarea = 10)
   assign(paste0("year_", sprintf("%02d", y)), temp)
 }
 

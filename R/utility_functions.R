@@ -7,17 +7,11 @@ process_structure <- function(cut_heights = c(0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0
                               obstructions, # Geometry that may obstruct plant growth in horizontal plane
                               boundary, # Geometry that defines the boundary of the site
                               hex_gridshape = TRUE, # Use hexagonal-shaped grid cells in the analysis; default is yes
-                              approx_cellarea # Target cell area in square meters; note, square-shaped cell areas will be slightly larger and hexagonal-shaped cell areas will be slightly smaller
+                              cellarea # Target cell area in square meters
 ) {
   
   # Create grid from boundary based on specified grid shape and approximate cell size
-  if (hex_gridshape) {
-    grid <- st_make_grid(boundary, n = as.numeric(floor(sqrt(ceiling(st_area(boundary)) / approx_cellarea))), square = FALSE)
-    grid <- st_sf(data.frame("id" = 1:length(grid)), geometry = grid)
-  } else {
-    grid <- st_make_grid(boundary, n = as.numeric(floor(sqrt(ceiling(st_area(boundary)) / approx_cellarea))))
-    grid <- st_sf(data.frame("id" = 1:length(grid)), geometry = grid)
-  }
+    grid <- create_grid(boundary = boundary, hex_gridshape = hex_gridshape, cellarea = cellarea)
   
   # Calculate all relative plant heights and widths for the given year (from reference height)
   plant_heights <- locations$max_height * (pmin(year, locations$year_max) / locations$year_max)
@@ -128,7 +122,7 @@ prepare_conn_data <- function(grid, # Grid of polygons with proportions vegetati
   
   # Add attribute to identify grid cell shape type
   attr(grid, 'shape') <- grid_shape
-    
+  
   # Return grid with relative resistance values
   grid
 }
@@ -183,39 +177,93 @@ zero_to_one <- function(x) {
   (x - min(x)) / (max(x) - min(x))
 }
 
-# create_grid <- function(boundary, # Boundary to create grid cells over
-#                         gridshape = "hexagonal", # Shape of grid
-#                         cellarea = 10 # Size of grid cells in square meters
-# ) {
-#   
-#   # Extend the boundary based on 10% of the shortest dimension
-#   b_box <- st_bbox(boundary)
-#   x_length <- diff(b_box[c(1, 3)])
-#   y_length <- diff(b_box[c(2, 4)])
-#   offset <- min(x_length, y_length) * 0.1
-#   new_extent <- c(b_box[1] - offset, b_box[2] - offset, b_box[3] + offset, b_box[4] + offset)
-# 
-#   if(gridshape == "hexagonal") {
-#     
-#     # Properties of hexagon based on specified area
-#     side <- sqrt(cellarea / ((3 * sqrt(3)) / 2))
-#     perimeter <- side * 6
-#     apothem <- 2 * cellarea / perimeter
-#     radius <- side
-#     x_spacing <- 2 * radius
-#     y_spacing <- 2 * apothem
-#     
-#     # Determine number of cells
-#     n_x <- ceiling(x_length / x_diameter)
-#     n_y <- ceiling(y_length / y_diameter)
-#     
-#     
-#     
-#   } else {
-#     
-#   }
-#  
-# }
+create_grid <- function(boundary, # Boundary to create grid cells over
+                        hex_gridshape = TRUE, # Shape of grid; default is hexagonal
+                        cellarea = 10 # Size of grid cells in square meters
+) {
+  
+  # Determine horizontal and vertical spacing
+  horizontal_spacing <- vertical_spacing <- sqrt(cellarea)
+  
+  # If hexagonal, calculate spatial properties and spacing for regular "flat-topped" cell
+  if (hex_gridshape) {
+    outer_radius <- sqrt(2 * cellarea / (3 * sqrt(3)))
+    inner_radius <- (outer_radius * sqrt(3)) / 2
+    horizontal_spacing <- 3 * outer_radius
+    vertical_spacing <- inner_radius
+  }
+  
+  # Increase boundary to ensure adequate coverage
+  boundary_buff <- st_buffer(boundary, 2 * horizontal_spacing)
+  
+  # Determine extent and size of boundary
+  extent <- st_bbox(boundary_buff)
+  horizontal_dist <- diff(extent[c(1, 3)])
+  vertical_dist <- diff(extent[c(2, 4)])
+  
+  # Determine total number of columns and rows
+  n_columns <- horizontal_dist %/% horizontal_spacing
+  n_rows <- vertical_dist %/% vertical_spacing
+  
+  # Create coordinates
+  x_coords <- rep(c(extent[1], extent[1] + seq_len(n_columns - 1) * horizontal_spacing), n_rows)
+  y_coords <- sort(rep(c(extent[4], extent[4] - seq_len(n_rows - 1) * vertical_spacing), n_columns), decreasing = TRUE)
+  
+  # Combine coordinates into a matrix of x and y values
+  xy_coords <- cbind(x_coords, y_coords)
+  
+  # If hexagonal:
+  if (hex_gridshape) {
+    
+    # identify indices of x coordinates to offset
+    shift_idx <- rep(c(rep(FALSE, n_columns), rep(TRUE, n_columns)), sum(seq_len(n_rows) %% 2 == 0))
+    if(n_rows %% 2 != 0) shift_idx <- c(shift_idx, c(rep(FALSE, n_columns)))
+    
+    # Offset coordinates for target indices
+    xy_coords[shift_idx, 1] <- xy_coords[shift_idx, 1] + horizontal_spacing / 2
+  }
+  
+  # Create lists of coordinates to bound hexagon cell for each centroid coordinate
+  poly_coords <- lapply(seq_len(n_columns * n_rows), function(i) {
+    
+    x_coord <- xy_coords[i , 1]
+    y_coord <- xy_coords[i , 2]
+    
+    ifelse(hex_gridshape,
+           list(
+             rbind(
+               c(x_coord - (outer_radius / 2) , y_coord + inner_radius),
+               c(x_coord + (outer_radius / 2) , y_coord + inner_radius),
+               c(x_coord + outer_radius, y_coord),
+               c(x_coord + (outer_radius / 2) , y_coord - inner_radius),
+               c(x_coord - (outer_radius / 2) , y_coord - inner_radius),
+               c(x_coord - outer_radius, y_coord),
+               c(x_coord - (outer_radius / 2) , y_coord + inner_radius)
+             )),
+           list(
+             rbind(
+               c(x_coord - (horizontal_spacing / 2) , y_coord + (vertical_spacing / 2)),
+               c(x_coord + (horizontal_spacing / 2) , y_coord + (vertical_spacing / 2)),
+               c(x_coord + (horizontal_spacing / 2) , y_coord - (vertical_spacing / 2)),
+               c(x_coord - (horizontal_spacing / 2) , y_coord - (vertical_spacing / 2)),
+               c(x_coord - (horizontal_spacing / 2) , y_coord + (vertical_spacing / 2))
+             ))
+    )
+  })
+  
+  # Create spatial polygons
+  polys <- lapply(seq_len(n_columns * n_rows), function(i) st_sfc(st_polygon(poly_coords[[i]]), crs = st_crs(boundary)))
+  polys <- do.call(c, polys)
+  polys <- st_sf(data.frame("id" = 1:length(polys)), geometry = polys)
+  
+  # Crop to input boundary
+  grid <- polys[st_intersection(polys, boundary)$id, ]
+  
+  # Reset numbering in ids
+  grid$id <- seq_len(nrow(grid))
+  
+  grid
+}
 
 
 #### Original function by Stefan Jünger
