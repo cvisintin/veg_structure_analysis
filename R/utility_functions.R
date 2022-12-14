@@ -1,86 +1,120 @@
 library(sf)
 library(dplyr)
 
-process_structure <- function(cut_heights = c(0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0), # Input height datums in meters
-                              year = 1, # Year of interest
-                              locations, # Spatial geometry and attributes of plants
+process_structure <- function(locations, # Spatial geometry and attributes of plants
                               obstructions, # Geometry that may obstruct plant growth in horizontal plane
                               boundary, # Geometry that defines the boundary of the site
+                              cut_heights = NULL, # Optional height datums in meters
+                              years = 1, # Years of interest
                               hex_gridshape = TRUE, # Use hexagonal-shaped grid cells in the analysis; default is yes
-                              cellarea # Target cell area in square meters
+                              cellarea, # Target cell area in square meters
+                              veg_layers_path = NULL, # Path to folder where vegetation layers should be written
+                              overlap_grids_path = NULL # Path to folder where grid layers should be written
 ) {
   
   # Create grid from boundary based on specified grid shape and approximate cell size
-    grid <- create_grid(boundary = boundary, hex_gridshape = hex_gridshape, cellarea = cellarea)
+  master_grid <- create_grid(boundary = boundary, hex_gridshape = hex_gridshape, cellarea = cellarea)
   
-  # Calculate all relative plant heights and widths for the given year (from reference height)
-  plant_heights <- locations$max_height * (pmin(year, locations$year_max) / locations$year_max)
-  plant_widths <- locations$max_width * (pmin(year, locations$year_max) / locations$year_max)
+  # Determine cell spacing distance
+  cell_dist <- sqrt(2 * cellarea / (3 * sqrt(3))) * sqrt(3)
+  if(hex_gridshape == FALSE) cell_dist <- sqrt(cellarea)
   
-  # Generate id lists for plants that intersect each height datum for the given year
-  plant_idx <- lapply(cut_heights, function(cut_height) which(plant_heights + locations$ref_height >= cut_height & cut_height >= locations$ref_height))
+  # Determine maximum height of vegetation plus 5%
+  max_veg_height <- max(locations$max_height) * 1.05
   
-  proportion_grids <- lapply(cut_heights, function(cut_height) {
+  # Number of vertical layers at cell spacing distance within maximum vegetation height
+  n_vert_layers <- max_veg_height %/% cell_dist
+  
+  # If cut_heights are not specified, use regular spacing based on distance between cells
+  if(is.null(cut_heights)) cut_heights <- (1:n_vert_layers) * cell_dist
+  
+  out <- lapply(years, function(year) {  
     
-    # Add new attribute to grid
-    grid$prop_ol <- NA
+    # Calculate all relative plant heights and widths for the given year (from reference height)
+    plant_heights <- locations$max_height * (pmin(year, locations$year_max) / locations$year_max)
+    plant_widths <- locations$max_width * (pmin(year, locations$year_max) / locations$year_max)
     
-    # Extract ids for vegetation that are within the height category
-    ids <- plant_idx[[which(cut_heights == cut_height)]]
+    # Generate id lists for plants that intersect each height datum for the given year
+    plant_idx <- lapply(cut_heights, function(cut_height) which(plant_heights + locations$ref_height >= cut_height & cut_height >= locations$ref_height))
     
-    # Verify if any vegetation exists within height category 
-    if(length(ids) > 0) {
+    proportion_grids <- lapply(cut_heights, function(cut_height) {
       
-      # Generate multipliers for width based on assumed geometry (note, this is moderated by height and type)
-      mults <- sapply(ids, function(id) {
-        ifelse(locations$type[id] == 'tree' & cut_height < plant_heights[id]  / 2, 0,
-               ifelse(locations$type[id] == 'tree' & cut_height >= plant_heights[id] / 2, sqrt(pmax(0, (plant_heights[id] * 0.25)^2 - ((cut_height - locations$ref_height[id]) - (plant_heights[id] * 0.75))^2)) / (plant_heights[id] * 0.25),
-                      ifelse(locations$type[id] == 'shrub', sqrt(pmax(0, (plant_heights[id] * 0.5)^2 - ((cut_height - locations$ref_height[id]) - (plant_heights[id] * 0.5))^2)) / (plant_heights[id] * 0.5),
-                             (cut_height - locations$ref_height[id]) / plant_heights[id])))
-      })
+      # Copy master grid
+      grid <- master_grid
       
-      # Create a buffered region around all plants based on geometry type for the given year
-      buffered_area <- st_union(st_buffer(locations[ids, ], (plant_widths[ids] / 2) * mults))
+      # Add new attribute to grid
+      grid$prop_ol <- NA
       
-      # Determine which obstructions are above cut height
-      obstruction_idx <- which(obstructions$height > cut_height)
+      # Extract ids for vegetation that are within the height category
+      ids <- plant_idx[[which(cut_heights == cut_height)]]
       
-      # Remove areas with obstructions (e.g. buildings)
-      planted_area <- st_difference(buffered_area, obstructions$geometry[obstruction_idx])
+      # Verify if any vegetation exists within height category 
+      if(length(ids) > 0) {
+        
+        # Generate multipliers for width based on one of six specified geometry types (note, this is moderated by height)
+        mults <- sapply(ids, function(id) {
+          ifelse(locations$type[id] == 'tree' & cut_height < plant_heights[id]  / 2, 0,
+                 ifelse(locations$type[id] == 'tree' & cut_height >= plant_heights[id] / 2, sqrt(pmax(0, (plant_heights[id] * 0.25)^2 - ((cut_height - locations$ref_height[id]) - (plant_heights[id] * 0.75))^2)) / (plant_heights[id] * 0.25),
+                        ifelse(locations$type[id] == 'shrub', sqrt(pmax(0, (plant_heights[id] * 0.5)^2 - ((cut_height - locations$ref_height[id]) - (plant_heights[id] * 0.5))^2)) / (plant_heights[id] * 0.5),
+                               (cut_height - locations$ref_height[id]) / plant_heights[id])))
+        })
+        
+        # Create a buffered region around all plants based on geometry types for the given year
+        buffered_area <- st_union(st_buffer(locations[ids, ], (plant_widths[ids] / 2) * mults))
+        
+        # Determine which obstructions are above cut height
+        obstruction_idx <- which(obstructions$height > cut_height)
+        
+        # Remove areas with obstructions (e.g. buildings)
+        planted_area <- st_difference(buffered_area, obstructions$geometry[obstruction_idx])
+        
+        # If path is provided, write out vegetation footprints for given year and selected heights
+        # using centimeters to designate height (padded with zeros)
+        if(!is.null(veg_layers_path)) {
+          st_write(planted_area, paste0(veg_layers_path,
+                                        "year_",
+                                        sprintf("%02d", year),
+                                        "_height_",
+                                        sprintf("%04d", round(cut_height * 100)),
+                                        "_veg.shp"), append = FALSE)
+        }
+        
+        # Identify the grid cells that have overlap with vegetation
+        overlap_idx <- st_intersects(grid$geometry, st_union(planted_area), sparse = FALSE)
+        
+        # Determine the area of overlap in each qualified grid cell
+        areas <- st_area(st_intersection(grid$geometry[overlap_idx], st_union(planted_area)))
+        
+        # Record proportions of overlap to eligible grids
+        grid$prop_ol[overlap_idx] <- areas / st_area(grid$geometry[1])
+        
+      }
       
-      # Write out vegetation footprints for given year and selected heights
-      # using centimeters to designate height (padded with zeros)
-      st_write(planted_area, paste0("output/sp_vegetation/year_",
-                                    sprintf("%02d", year),
-                                    "_height_",
-                                    sprintf("%04d", cut_height * 100),
-                                    "_veg.shp"), append = FALSE)
+      # If path is provided, write out grids for given year and selected heights using centimeters
+      # to designate height (padded with zeros)
+      if(!is.null(overlap_grids_path)) {
+        st_write(grid, paste0("output/sp_grids/year_",
+                              sprintf("%02d", year),
+                              "_height_",
+                              sprintf("%04d", round(cut_height * 100)),
+                              "_grd_",
+                              ifelse(hex_gridshape, "hex", "rect") ,
+                              ".shp"), append = FALSE)
+      }
       
-      # Identify the grid cells that have overlap with vegetation
-      overlap_idx <- st_intersects(grid$geometry, st_union(planted_area), sparse = FALSE)
+      grid
       
-      # Determine the area of overlap in each qualified grid cell
-      areas <- st_area(st_intersection(grid$geometry[overlap_idx], st_union(planted_area)))
-      
-      # Record proportions of overlap to eligible grids
-      grid$prop_ol[overlap_idx] <- areas / st_area(grid$geometry[1])
-      
-    }
+    })
     
-    # Write out grids for given year and selected heights using centimeters
-    # to designate height (padded with zeros)
-    st_write(grid, paste0("output/sp_grids/year_",
-                          sprintf("%02d", year),
-                          "_height_",
-                          sprintf("%04d", cut_height * 100),
-                          "_grd_",
-                          ifelse(hex_gridshape, "hex", "rect") ,
-                          ".shp"), append = FALSE)
+    names(proportion_grids) <- paste0("cut_", sprintf("%04d", round(cut_heights * 100)))
     
-    grid
+    proportion_grids
+    
   })
   
-  proportion_grids
+  names(out) <- paste0("year_", sprintf("%02d", years))
+  
+  out
 }
 
 prepare_conn_data <- function(grid, # Grid of polygons with proportions vegetation coverage to be used in the analysis
