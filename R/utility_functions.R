@@ -1,7 +1,8 @@
 library(sf)
 library(dplyr)
 
-process_structure <- function(locations, # Spatial geometry and attributes of plants
+process_structure <- function(point_locations, # Spatial geometry and attributes of plants
+                              polygon_locations = NULL, # Spatial geometry and attributes of planted areas
                               obstructions, # Geometry that may obstruct plant growth in horizontal plane
                               boundary, # Geometry that defines the boundary of the site
                               cut_heights = NULL, # Optional height datums in meters
@@ -12,6 +13,26 @@ process_structure <- function(locations, # Spatial geometry and attributes of pl
                               overlap_grids_path = NULL # Path to folder where grid layers should be written
 ) {
   
+  # If polygonal planting areas are provided, convert them to additional points based on spacing and coverage
+  if(!is.null(polygon_locations)) {
+    n_polys <- nrow(polygon_locations)
+    
+    point_list <- lapply(seq_len(n_polys), function(i) {
+      data <- st_drop_geometry(polygon_locations[i, ])
+      cell_size <- 1 / sqrt(polygon_locations$spacing[i])
+      grid <- st_make_grid(st_bbox(polygon_locations$geometry[i]), cellsize = cell_size, what = "centers")
+      points <- st_intersection(grid, polygon_locations$geometry[i])
+      n_points <- length(points)
+      points <- points[sample(seq_len(n_points), floor(n_points * polygon_locations$coverage[i] / 100))]
+      st_sf(data, geometry = points)
+    })
+    
+    new_plant_points <- do.call(rbind, point_list)
+    
+    point_locations <- rbind(point_locations, new_plant_points)
+  }
+  
+  
   # Create grid from boundary based on specified grid shape and approximate cell size
   master_grid <- create_grid(boundary = boundary, hex_gridshape = hex_gridshape, cellarea = cellarea)
   
@@ -20,7 +41,7 @@ process_structure <- function(locations, # Spatial geometry and attributes of pl
   if(hex_gridshape == FALSE) cell_dist <- sqrt(cellarea)
   
   # Determine maximum height of vegetation plus 5%
-  max_veg_height <- max(locations$max_height) * 1.05
+  max_veg_height <- max(point_locations$max_height) * 1.05
   
   # Number of vertical layers at cell spacing distance within maximum vegetation height
   n_vert_layers <- max_veg_height %/% cell_dist
@@ -30,12 +51,14 @@ process_structure <- function(locations, # Spatial geometry and attributes of pl
   
   out <- lapply(years, function(year) {  
     
+    print(paste0("Processing year ", year))
+    
     # Calculate all relative plant heights and widths for the given year (from reference height)
-    plant_heights <- locations$max_height * (pmin(year, locations$year_max) / locations$year_max)
-    plant_widths <- locations$max_width * (pmin(year, locations$year_max) / locations$year_max)
+    plant_heights <- point_locations$max_height * (pmin(year, point_locations$year_max) / point_locations$year_max)
+    plant_widths <- point_locations$max_width * (pmin(year, point_locations$year_max) / point_locations$year_max)
     
     # Generate id lists for plants that intersect each height datum for the given year
-    plant_idx <- lapply(cut_heights, function(cut_height) which(plant_heights + locations$ref_height >= cut_height & cut_height >= locations$ref_height))
+    plant_idx <- lapply(cut_heights, function(cut_height) which(plant_heights + point_locations$ref_height >= cut_height & cut_height >= point_locations$ref_height))
     
     proportion_grids <- lapply(cut_heights, function(cut_height) {
       
@@ -43,7 +66,7 @@ process_structure <- function(locations, # Spatial geometry and attributes of pl
       grid <- master_grid
       
       # Add new attribute to grid
-      grid$prop_ol <- NA
+      grid$prop_ol <- as.numeric(NA)
       
       # Extract ids for vegetation that are within the height category
       ids <- plant_idx[[which(cut_heights == cut_height)]]
@@ -51,16 +74,15 @@ process_structure <- function(locations, # Spatial geometry and attributes of pl
       # Verify if any vegetation exists within height category 
       if(length(ids) > 0) {
         
-        # Generate multipliers for width based on one of six specified geometry types (note, this is moderated by height)
+        # Generate multipliers for width based on one of seven specified geometry forms (note, this is moderated by plant height)
         mults <- sapply(ids, function(id) {
-          ifelse(locations$type[id] == 'tree' & cut_height < plant_heights[id]  / 2, 0,
-                 ifelse(locations$type[id] == 'tree' & cut_height >= plant_heights[id] / 2, sqrt(pmax(0, (plant_heights[id] * 0.25)^2 - ((cut_height - locations$ref_height[id]) - (plant_heights[id] * 0.75))^2)) / (plant_heights[id] * 0.25),
-                        ifelse(locations$type[id] == 'shrub', sqrt(pmax(0, (plant_heights[id] * 0.5)^2 - ((cut_height - locations$ref_height[id]) - (plant_heights[id] * 0.5))^2)) / (plant_heights[id] * 0.5),
-                               (cut_height - locations$ref_height[id]) / plant_heights[id])))
+          adj_cut_height <- cut_height - point_locations$ref_height[id]
+          plant_height <- plant_heights[id]
+          do.call(point_locations$form[id], list(adj_cut_height = adj_cut_height, plant_height = plant_height))
         })
         
-        # Create a buffered region around all plants based on geometry types for the given year
-        buffered_area <- st_union(st_buffer(locations[ids, ], (plant_widths[ids] / 2) * mults))
+        # Create a buffered region around all plants based on geometry forms for the given year
+        buffered_area <- st_union(st_buffer(point_locations[ids, ], (plant_widths[ids] / 2) * mults))
         
         # Determine which obstructions are above cut height
         obstruction_idx <- which(obstructions$height > cut_height)
@@ -75,7 +97,7 @@ process_structure <- function(locations, # Spatial geometry and attributes of pl
                                         "year_",
                                         sprintf("%02d", year),
                                         "_height_",
-                                        sprintf("%04d", round(cut_height * 100)),
+                                        sprintf("%04d", ceiling(cut_height * 100)),
                                         "_veg.shp"), append = FALSE)
         }
         
@@ -93,10 +115,11 @@ process_structure <- function(locations, # Spatial geometry and attributes of pl
       # If path is provided, write out grids for given year and selected heights using centimeters
       # to designate height (padded with zeros)
       if(!is.null(overlap_grids_path)) {
-        st_write(grid, paste0("output/sp_grids/year_",
+        st_write(grid, paste0(overlap_grids_path,
+                              "year_",
                               sprintf("%02d", year),
                               "_height_",
-                              sprintf("%04d", round(cut_height * 100)),
+                              sprintf("%04d", ceiling(cut_height * 100)),
                               "_grd_",
                               ifelse(hex_gridshape, "hex", "rect") ,
                               ".shp"), append = FALSE)
@@ -106,7 +129,7 @@ process_structure <- function(locations, # Spatial geometry and attributes of pl
       
     })
     
-    names(proportion_grids) <- paste0("cut_", sprintf("%04d", round(cut_heights * 100)))
+    names(proportion_grids) <- paste0("cut_", sprintf("%04d", ceiling(cut_heights * 100)))
     
     proportion_grids
     
@@ -299,6 +322,47 @@ create_grid <- function(boundary, # Boundary to create grid cells over
   grid
 }
 
+#### Geometric form functions
+
+columnar <- function(adj_cut_height = 0, plant_height = 0) {
+  ifelse(adj_cut_height < (plant_height * 0.33), 0, 1)
+}
+
+pyramidal <- function(adj_cut_height = 0, plant_height = 0) {
+  ifelse(adj_cut_height < (plant_height * 0.33), 0, ((-1 * adj_cut_height) + plant_height) / (plant_height - (plant_height * 0.33)))
+}
+
+round <- function(adj_cut_height = 0, plant_height = 0) {
+  sqrt(pmax(0, (plant_height * 0.33)^2 - (adj_cut_height - (plant_height * 0.66))^2)) / (plant_height * 0.33)
+}
+
+rounded <- function(adj_cut_height = 0, plant_height = 0) {
+  sqrt(pmax(0, (plant_height * 0.5)^2 - (adj_cut_height - (plant_height * 0.5))^2)) / (plant_height * 0.5)
+}
+
+mounding <- function(adj_cut_height = 0, plant_height = 0) {
+  1 - (adj_cut_height / plant_height)^2
+}
+
+vase <- function(adj_cut_height = 0, plant_height = 0) {
+  (adj_cut_height / plant_height)
+}
+
+upright <- function(adj_cut_height = 0, plant_height = 0) {
+  adj_cut_height / adj_cut_height
+}
+
+# function_names <- list("columnar", "pyramidal", "round", "rounded", "mounding", "vase", "upright")
+# 
+# par(mfrow = c(2, 4))
+# 
+# for (i in function_names) {
+#   plot(seq(0, 2, 0.02), do.call(i, list(adj_cut_height = seq(0, 2, 0.02), plant_height = 2)),
+#        type = 'l',
+#        xlab = "",
+#        ylab = "",
+#        main = i)
+# }
 
 #### Original function by Stefan Jünger
 #### https://stefanjuenger.github.io/gesis-workshop-geospatial-techniques-R/slides/2_4_Advanced_Maps_II/2_4_Advanced_Maps_II.html#8
