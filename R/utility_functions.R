@@ -1,8 +1,29 @@
 library(sf)
 library(dplyr)
 
+convert_combine <- function(point_locations, # Spatial geometry and attributes of plants
+                            polygon_locations # Spatial geometry and attributes of planted areas
+) {
+  n_polys <- nrow(polygon_locations)
+  
+  point_list <- lapply(seq_len(n_polys), function(i) {
+    data <- st_drop_geometry(polygon_locations[i, ])
+    cell_size <- 1 / sqrt(polygon_locations$spacing[i])
+    grid <- st_make_grid(st_bbox(polygon_locations$geometry[i]), cellsize = cell_size, what = "centers")
+    points <- st_intersection(grid, polygon_locations$geometry[i])
+    n_points <- length(points)
+    points <- points[sample(seq_len(n_points), floor(n_points * polygon_locations$coverage[i] / 100))]
+    st_sf(data, geometry = points)
+  })
+  
+  new_plant_points <- do.call(rbind, point_list)
+  
+  rbind(point_locations, new_plant_points)
+}
+
+
+
 process_structure <- function(point_locations, # Spatial geometry and attributes of plants
-                              polygon_locations = NULL, # Spatial geometry and attributes of planted areas
                               obstructions, # Geometry that may obstruct plant growth in horizontal plane
                               boundary, # Geometry that defines the boundary of the site
                               cut_heights = NULL, # Optional height datums in meters
@@ -12,26 +33,6 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
                               veg_layers_path = NULL, # Path to folder where vegetation layers should be written
                               overlap_grids_path = NULL # Path to folder where grid layers should be written
 ) {
-  
-  # If polygonal planting areas are provided, convert them to additional points based on spacing and coverage
-  if(!is.null(polygon_locations)) {
-    n_polys <- nrow(polygon_locations)
-    
-    point_list <- lapply(seq_len(n_polys), function(i) {
-      data <- st_drop_geometry(polygon_locations[i, ])
-      cell_size <- 1 / sqrt(polygon_locations$spacing[i])
-      grid <- st_make_grid(st_bbox(polygon_locations$geometry[i]), cellsize = cell_size, what = "centers")
-      points <- st_intersection(grid, polygon_locations$geometry[i])
-      n_points <- length(points)
-      points <- points[sample(seq_len(n_points), floor(n_points * polygon_locations$coverage[i] / 100))]
-      st_sf(data, geometry = points)
-    })
-    
-    new_plant_points <- do.call(rbind, point_list)
-    
-    point_locations <- rbind(point_locations, new_plant_points)
-  }
-  
   
   # Create grid from boundary based on specified grid shape and approximate cell size
   master_grid <- create_grid(boundary = boundary, hex_gridshape = hex_gridshape, cellarea = cellarea)
@@ -48,6 +49,9 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
   
   # If cut_heights are not specified, use regular spacing based on distance between cells
   if(is.null(cut_heights)) cut_heights <- (1:n_vert_layers) * cell_dist
+  
+  # If 1m is not specified in cut heights, add it
+  if(!1 %in% cut_heights) cut_heights <- sort(c(1, cut_heights))
   
   out <- lapply(years, function(year) {  
     
@@ -363,6 +367,38 @@ upright <- function(adj_cut_height = 0, plant_height = 0) {
 #        ylab = "",
 #        main = i)
 # }
+
+# Calculate the overall Shannon Diversity Evenness Index
+shannon_evenness <- function(counts) {
+  sp_props <- counts / sum(counts)
+  sdi <- -sum(sp_props * log(sp_props))
+  max_sdi <- log(length(counts)) 
+  signif(sdi / max_sdi, 2)
+}
+
+extract_coverage <- function(spatial_list) {
+  # Extract unique years from file list
+  years <- names(spatial_list)
+  n_year_groups <- length(years)
+  
+  # Extract unique heights from file list and convert to numeric and meter units
+  heights <- names(spatial_list[[1]])
+  heights <- as.numeric(substr(heights, (nchar(heights) + 1) - 4, nchar(heights))) / 100
+  
+  sapply(seq_len(n_year_groups), function(j) {
+    
+    spatial_year <- spatial_list[[j]]
+    
+    idx <- which(grepl("0100", names(spatial_year)))
+    
+    grid <- spatial_year[[idx]]
+    
+    grid$prop_ol[is.na(grid$prop_ol)] <- 0
+    
+    sum(grid$prop_ol) / length(grid$prop_ol)
+    
+  })
+}
 
 #### Original function by Stefan Jünger
 #### https://stefanjuenger.github.io/gesis-workshop-geospatial-techniques-R/slides/2_4_Advanced_Maps_II/2_4_Advanced_Maps_II.html#8

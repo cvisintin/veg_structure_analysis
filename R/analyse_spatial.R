@@ -11,6 +11,9 @@ n_year_groups <- length(years)
 # Extract unique cut heights from file list and convert to numeric and meter units
 cut_heights <- as.numeric(unique(gsub(".*height_(.+)_grd.*", "\\1", list.files('output/sp_grids', pattern = '.shp')))) / 100
 
+# Drop 1m cut if it is not part of the regular sequence
+
+
 # Generate lists of files grouped by years
 sp_files <- lapply(years, function(y) grep(y, list.files('output/sp_grids', pattern = '.shp', full.names = TRUE), value = TRUE))
 
