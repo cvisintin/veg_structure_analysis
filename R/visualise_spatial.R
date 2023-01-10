@@ -59,149 +59,6 @@ sapply(seq_len(n_year_groups), function(j) {
 # Animate spatial outputs
 system('convert -delay 50 -dispose previous -loop 0 figs/* figs/animations/veg_growth.gif')
 
-### Phenology ###
-### From https://r-graph-gallery.com/295-basic-circular-barplot.html
-
-months <- c("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-
-phenology_data <- data.frame(
-  id = seq(1, 12, 1),
-  value = sapply(months, function(month) sum(grepl(month, plant_points$phenology)))
-)
-
-img <- readPNG("data/images/flower_icon.png")
-g <- rasterGrob(img, interpolate = TRUE)
-
-# label_data <- data
-# 
-# # calculate the ANGLE of the labels
-# number_of_bar <- nrow(label_data)
-# angle <-  75 - 360 * (label_data$id - 0.5) / number_of_bar     # I subtract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
-# 
-# # calculate the alignment of labels: right or left
-# # If I am on the left part of the plot, my labels have currently an angle < -90
-# label_data$hjust <- ifelse(angle < -90, 1, 0)
-# 
-# # flip angle BY to make them readable
-# label_data$angle <- ifelse(angle < -90, angle + 180, angle)
-
-# Make the plot
-phenology <- ggplot(phenology_data, aes(x = as.factor(id), y = value)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
-  
-  # This add the bars with a color
-  geom_bar(stat = "identity", fill = "#b0d4d6") +
-  
-  # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
-  ylim(-max(phenology_data$value), max(phenology_data$value)) +
-  
-  # Custom the theme: no axis title and no cartesian grid
-  theme_minimal() +
-  theme(
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    plot.margin = unit(rep(-1, 4), "cm")     # This remove unnecessary margin around plot
-  ) +
-  
-  # This makes the coordinate polar instead of cartesian.
-  coord_polar(start = 0.25) +
-  
-  # Add the labels, using the label_data dataframe that we have created before
-  geom_text(data = phenology_data, aes(x = id, y = value * 0.5, label = toupper(row.names(phenology_data))),#, hjust = hjust),
-            color = "black", fontface = "bold", alpha = 0.6, size = 2.5,
-  ) +#angle = label_data$angle, inherit.aes = FALSE)
-  
-  geom_image(data = data.frame(xx = min(phenology_data$value), yy = -max(phenology_data$value), image = "data/images/flower_icon.png"), mapping = aes(xx, yy, image = image), size = .25, inherit.aes = FALSE)
-
-phenology
-
-
-### Species richness ###
-richness_data <- data.frame(
-  id = seq(1, length(unique(plant_points$species)), 1),
-  value = sapply(unique(plant_points$species), function(sp) length(which(plant_points$species == sp)))
-)
-
-# label_data <- data
-# 
-# # calculate the ANGLE of the labels
-# number_of_bar <- nrow(label_data)
-# angle <-  90 - 360 * (label_data$id - 0.5) / number_of_bar     # I subtract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
-# 
-# # calculate the alignment of labels: right or left
-# # If I am on the left part of the plot, my labels have currently an angle < -90
-# label_data$hjust <- ifelse(angle < -90, 1, 0)
-# 
-# # flip angle BY to make them readable
-# label_data$angle <- ifelse(angle < -90, angle + 180, angle)
-
-# Make the plot
-richness <- ggplot(richness_data, aes(x = as.factor(id), y = value)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
-  
-  # This add the bars with a color
-  geom_bar(stat = "identity", fill = "#858383") +
-  
-  # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
-  ylim(-max(richness_data$value), max(richness_data$value) * 1.05) +
-  
-  # Custom the theme: no axis title and no cartesian grid
-  theme_minimal() +
-  theme(
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    plot.margin = unit(rep(-1, 4), "cm")     # This remove unnecessary margin around plot
-  ) +
-  
-  # This makes the coordinate polar instead of cartesian.
-  coord_polar(start = 0.25) +
-  
-  # Add the label
-  geom_text(data = data.frame(xx = min(richness_data$value), yy = -max(richness_data$value), label = paste0(shannon_evenness(richness_data$value), "\n EVENNESS \n SCORE")), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
-
-# geom_text(data = label_data,
-#           mapping = aes(x = id, y = value * 1.05, label = toupper(row.names(data)), hjust = hjust),
-#           color = "black", fontface = "bold", alpha = 0.6, size = 2.5, angle = label_data$angle, inherit.aes = FALSE)
-
-richness
-
-
-### Coverage at 1m ###
-coverage_data <- data.frame(
-  id = seq(1, n_year_groups, 1),
-  value = extract_coverage(years_1_30)
-)
-
-# Make the plot
-coverage <- ggplot(coverage_data, aes(x = as.factor(id), y = value)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
-  
-  # This add the bars with a color
-  geom_bar(stat = "identity", fill = "#c9837d") +
-  
-  # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
-  ylim(-max(coverage_data$value) * 1.1, max(coverage_data$value) * 1.15) +
-  
-  # Custom the theme: no axis title and no cartesian grid
-  theme_minimal() +
-  theme(
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    plot.margin = unit(rep(-1, 4), "cm")     # This remove unnecessary margin around plot
-  ) +
-  
-  # This makes the coordinate polar instead of cartesian.
-  coord_polar(start = -(2 / nrow(coverage_data))) +
-  
-  # Add the labels, using the label_data dataframe that we have created before
-  geom_text(data = coverage_data, aes(x = id, y = value * 0.5, label = paste0("Y", toupper(row.names(coverage_data)))),#, hjust = hjust),
-            color = "black", fontface = "bold", alpha = 0.6, size = 2.5,
-  ) +#angle = label_data$angle, inherit.aes = FALSE)
-  
-  geom_image(data = data.frame(xx = min(coverage_data$value), yy = -max(coverage_data$value) * 1.1, image = "data/images/shrub_icon.png"), mapping = aes(xx, yy, image = image), size = .25, inherit.aes = FALSE)
-
-coverage
-
 
 ### Density ###
 density_data <- data.frame(
@@ -342,7 +199,7 @@ endemism_data$ymax = 1:100
 # Compute the bottom of each rectangle
 endemism_data$ymin = c(0, head(endemism_data$ymax, n = -1))
 
-pr_palette <- c(rep("#a072a6", max_prop),  rep("#e8e8e8", min_prop))
+pr_palette <- c(rep("#a072a6", endemism_max_prop),  rep("#e8e8e8", endemism_min_prop))
 
 # Make the plot
 endemism <- ggplot(endemism_data, aes(ymax = ymax, ymin = ymin, xmax = 5, xmin = 1, fill = factor(category))) +
@@ -355,7 +212,7 @@ endemism <- ggplot(endemism_data, aes(ymax = ymax, ymin = ymin, xmax = 5, xmin =
   theme_void() +
   theme(legend.position = "none") +
   
-  geom_text(data = data.frame(xx = 0, yy = -max(endemism_data$values) * 0.5, label = paste0(endemism_max_prop, "% \n NATIVE")), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
+  geom_text(data = data.frame(xx = 0, yy = -max(endemism_data$values) * 0.5, label = paste0(endemism_max_prop, "%\nNATIVE")), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
 
 endemism
 
@@ -376,7 +233,7 @@ type_data$ymax = 1:100
 # Compute the bottom of each rectangle
 type_data$ymin = c(0, head(type_data$ymax, n = -1))
 
-br_palette <- c(rep("#a19a65", max_prop),  rep("#e8e8e8", min_prop))
+br_palette <- c(rep("#a19a65", type_max_prop),  rep("#e8e8e8", type_min_prop))
 
 # Make the plot
 type <- ggplot(type_data, aes(ymax = ymax, ymin = ymin, xmax = 5, xmin = 1, fill = factor(category))) +
@@ -389,21 +246,166 @@ type <- ggplot(type_data, aes(ymax = ymax, ymin = ymin, xmax = 5, xmin = 1, fill
   theme_void() +
   theme(legend.position = "none") +
   
-  geom_text(data = data.frame(xx = 0, yy = -max(type_data$values) * 0.5, label = paste0(type_max_prop, "% \n EVERGREEN")), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
+  geom_text(data = data.frame(xx = 0, yy = -max(type_data$values) * 0.5, label = paste0(type_max_prop, "%\nEVERGREEN")), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
 
 type
+
+
+### Species richness ###
+richness_data <- data.frame(
+  id = seq(1, length(unique(plant_points$species)), 1),
+  value = sapply(unique(plant_points$species), function(sp) length(which(plant_points$species == sp)))
+)
+
+# label_data <- data
+# 
+# # calculate the ANGLE of the labels
+# number_of_bar <- nrow(label_data)
+# angle <-  90 - 360 * (label_data$id - 0.5) / number_of_bar     # I subtract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+# 
+# # calculate the alignment of labels: right or left
+# # If I am on the left part of the plot, my labels have currently an angle < -90
+# label_data$hjust <- ifelse(angle < -90, 1, 0)
+# 
+# # flip angle BY to make them readable
+# label_data$angle <- ifelse(angle < -90, angle + 180, angle)
+
+# Make the plot
+richness <- ggplot(richness_data, aes(x = as.factor(id), y = value)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
+  
+  # This add the bars with a color
+  geom_bar(stat = "identity", fill = "#858383") +
+  
+  # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
+  ylim(-max(richness_data$value), max(richness_data$value) * 1.05) +
+  
+  # Custom the theme: no axis title and no cartesian grid
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1, 4), "cm")     # This remove unnecessary margin around plot
+  ) +
+  
+  # This makes the coordinate polar instead of cartesian.
+  coord_polar(start = 0.25) +
+  
+  # Add the label
+  geom_text(data = data.frame(xx = min(richness_data$value), yy = -max(richness_data$value), label = paste0(shannon_evenness(richness_data$value), "\nEVENNESS\nSCORE")), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
+
+# geom_text(data = label_data,
+#           mapping = aes(x = id, y = value * 1.05, label = toupper(row.names(data)), hjust = hjust),
+#           color = "black", fontface = "bold", alpha = 0.6, size = 2.5, angle = label_data$angle, inherit.aes = FALSE)
+
+richness
+
+
+### Phenology ###
+### From https://r-graph-gallery.com/295-basic-circular-barplot.html
+
+months <- c("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+
+phenology_data <- data.frame(
+  id = seq(1, 12, 1),
+  value = sapply(months, function(month) sum(grepl(month, plant_points$phenology)))
+)
+
+img <- readPNG("data/images/flower_icon.png")
+g <- rasterGrob(img, interpolate = TRUE)
+
+# label_data <- data
+# 
+# # calculate the ANGLE of the labels
+# number_of_bar <- nrow(label_data)
+# angle <-  75 - 360 * (label_data$id - 0.5) / number_of_bar     # I subtract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+# 
+# # calculate the alignment of labels: right or left
+# # If I am on the left part of the plot, my labels have currently an angle < -90
+# label_data$hjust <- ifelse(angle < -90, 1, 0)
+# 
+# # flip angle BY to make them readable
+# label_data$angle <- ifelse(angle < -90, angle + 180, angle)
+
+# Make the plot
+phenology <- ggplot(phenology_data, aes(x = as.factor(id), y = value)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
+  
+  # This add the bars with a color
+  geom_bar(stat = "identity", fill = "#b0d4d6") +
+  
+  # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
+  ylim(-max(phenology_data$value), max(phenology_data$value)) +
+  
+  # Custom the theme: no axis title and no cartesian grid
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1, 4), "cm")     # This remove unnecessary margin around plot
+  ) +
+  
+  # This makes the coordinate polar instead of cartesian.
+  coord_polar(start = 0.25) +
+  
+  # Add the labels, using the label_data dataframe that we have created before
+  geom_text(data = phenology_data, aes(x = id, y = value * 0.5, label = toupper(row.names(phenology_data))),#, hjust = hjust),
+            color = "black", fontface = "bold", alpha = 0.6, size = 2.5,
+  ) +#angle = label_data$angle, inherit.aes = FALSE)
+  
+  geom_image(data = data.frame(xx = min(phenology_data$value), yy = -max(phenology_data$value), image = "data/images/flower_icon.png"), mapping = aes(xx, yy, image = image), size = .25, inherit.aes = FALSE)
+
+phenology
+
+
+### Coverage at 1m ###
+coverage_data <- data.frame(
+  id = seq(1, n_year_groups, 1),
+  value = extract_coverage(years_1_30)
+)
+
+# Make the plot
+coverage <- ggplot(coverage_data, aes(x = as.factor(id), y = value)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
+  
+  # This add the bars with a color
+  geom_bar(stat = "identity", fill = "#c9837d") +
+  
+  # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
+  ylim(-max(coverage_data$value) * 1.1, max(coverage_data$value) * 1.15) +
+  
+  # Custom the theme: no axis title and no cartesian grid
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1, 4), "cm")     # This remove unnecessary margin around plot
+  ) +
+  
+  # This makes the coordinate polar instead of cartesian.
+  coord_polar(start = -(2 / nrow(coverage_data))) +
+  
+  # Add the labels, using the label_data dataframe that we have created before
+  geom_text(data = coverage_data, aes(x = id, y = value * 0.5, label = paste0("Y", toupper(row.names(coverage_data)))),#, hjust = hjust),
+            color = "black", fontface = "bold", alpha = 0.6, size = 2.5,
+  ) +#angle = label_data$angle, inherit.aes = FALSE)
+  
+  geom_image(data = data.frame(xx = min(coverage_data$value), yy = -max(coverage_data$value) * 1.1, image = "data/images/shrub_icon.png"), mapping = aes(xx, yy, image = image), size = .25, inherit.aes = FALSE)
+
+coverage
 
 
 png(paste0("figs/results.png"), height = 2400, width = 2400, pointsize = 4, res = 300)
 grid.arrange(grobs = list(density,
                           texture,
                           sizes,
-                          phenology,
-                          coverage,
-                          NULL,
                           endemism,
                           type,
-                          richness), ncol = 3)
+                          richness,
+                          phenology,
+                          coverage,
+                          NULL
+                          ), ncol = 3)
 dev.off()
 
 

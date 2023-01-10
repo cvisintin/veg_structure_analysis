@@ -50,8 +50,14 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
   # If cut_heights are not specified, use regular spacing based on distance between cells
   if(is.null(cut_heights)) cut_heights <- (1:n_vert_layers) * cell_dist
   
+  # Set default switch for added 1m cut height
+  add_1m <- FALSE
+  
   # If 1m is not specified in cut heights, add it
-  if(!1 %in% cut_heights) cut_heights <- sort(c(1, cut_heights))
+  if(!1 %in% cut_heights) {
+    add_1m <- TRUE
+    cut_heights <- sort(c(1, cut_heights))
+  }
   
   out <- lapply(years, function(year) {  
     
@@ -140,6 +146,10 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
   })
   
   names(out) <- paste0("year_", sprintf("%02d", years))
+  
+  # Add attribute to identify added cut
+  attr(out, 'cut_1m') <- FALSE
+  if(add_1m) attr(out, 'cut_1m') <- TRUE
   
   out
 }
