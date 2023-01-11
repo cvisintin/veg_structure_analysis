@@ -15,11 +15,8 @@ years <- names(years_1_30)
 n_year_groups <- length(years)
 
 # Extract unique heights from file list and convert to numeric and meter units
-heights <- names(years_1_30[[1]])
-heights <- as.numeric(substr(heights, (nchar(heights) + 1) - 4, nchar(heights))) / 100
-
-# # Generate lists of files grouped by years
-# sp_files <- lapply(years, function(y) grep(y, list.files('output/sp_grids', pattern = '.shp', full.names = TRUE), value = TRUE))
+cut_heights <- names(years_1_30[[1]])
+cut_heights <- as.numeric(substr(cut_heights, (nchar(cut_heights) + 1) - 4, nchar(cut_heights))) / 100
 
 # Create spatial outputs
 sapply(seq_len(n_year_groups), function(j) {
@@ -43,7 +40,7 @@ sapply(seq_len(n_year_groups), function(j) {
     # Create plot of proportional overlap grid at currently specified height
     plot_list[[i]] <- ggplot() +
       geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray40', size = 0.05, show.legend = FALSE) +
-      annotate("text", label = paste0(heights[i], " m"), x = x , y = y, hjust = 0, color = 'gray40', size = 2) +
+      annotate("text", label = paste0(cut_heights[i], " m"), x = x , y = y, hjust = 0, color = 'gray40', size = 2) +
       scale_fill_viridis_c(option = 'E', na.value = "transparent") +
       theme_void()
   } 
@@ -361,7 +358,7 @@ phenology
 ### Coverage at 1m ###
 coverage_data <- data.frame(
   id = seq(1, n_year_groups, 1),
-  value = extract_coverage(years_1_30)
+  value = extract_1m_coverage(years_1_30)
 )
 
 # Make the plot
@@ -393,6 +390,43 @@ coverage <- ggplot(coverage_data, aes(x = as.factor(id), y = value)) +       # N
   geom_image(data = data.frame(xx = min(coverage_data$value), yy = -max(coverage_data$value) * 1.1, image = "data/images/shrub_icon.png"), mapping = aes(xx, yy, image = image), size = .25, inherit.aes = FALSE)
 
 coverage
+
+
+### Connectivity ###
+connectivity_data <- data.frame(
+  id = seq(1, n_year_groups, 1),
+  value = estimate_connectivity(years_1_30)
+)
+
+# Make the plot
+connectivity <- ggplot(connectivity_data, aes(x = as.factor(id), y = value)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
+  
+  # This add the bars with a color
+  geom_bar(stat = "identity", fill = "#c9837d") +
+  
+  # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
+  ylim(-max(connectivity_data$value) * 1.1, max(connectivity_data$value) * 1.15) +
+  
+  # Custom the theme: no axis title and no cartesian grid
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1, 4), "cm")     # This remove unnecessary margin around plot
+  ) +
+  
+  # This makes the coordinate polar instead of cartesian.
+  coord_polar(start = -(2 / nrow(connectivity_data))) +
+  
+  # Add the labels, using the label_data dataframe that we have created before
+  geom_text(data = connectivity_data, aes(x = id, y = value * 0.5, label = paste0("Y", toupper(row.names(connectivity_data)))),#, hjust = hjust),
+            color = "black", fontface = "bold", alpha = 0.6, size = 2.5,
+  ) +#angle = label_data$angle, inherit.aes = FALSE)
+  
+  geom_image(data = data.frame(xx = min(connectivity_data$value), yy = -max(connectivity_data$value) * 1.1, image = "data/images/shrub_icon.png"), mapping = aes(xx, yy, image = image), size = .25, inherit.aes = FALSE)
+
+connectivity
 
 
 png(paste0("figs/results.png"), height = 2400, width = 2400, pointsize = 4, res = 300)
