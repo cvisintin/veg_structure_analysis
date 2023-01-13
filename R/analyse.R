@@ -1,5 +1,5 @@
 library(sf)
-source('R/utility_functions.R')
+source('R/utility.R')
 
 # Load background spatial data
 building <- read_sf("data/gis/Building_Mass.shp")
@@ -132,27 +132,49 @@ estimate_connectivity <- function(spatial_list,
   heights <- as.numeric(substr(heights, (nchar(heights) + 1) - 4, nchar(heights))) / 100
   n_heights <- length(heights)
   
+  master_grid <- spatial_list[[1]][[1]]
+  
+  grid_spacing <- attr(spatial_list, 'gridspacing')
+  
+  search_dist <- grid_spacing * 1.5
+  
+  buffers <- st_buffer(st_centroid(master_grid$geometry), search_dist)
+  
+  points <- st_centroid(master_grid$geometry)
+  points <- st_sf(data.frame("id" = 1:length(points)), geometry = points)
+  
+  idx <- master_grid$id
+  
+  # Create master neighborhood list
+  nb_list <- lapply(idx, function(p) {
+    ids <- points$id[st_intersects(points, buffers[p], sparse = FALSE, prepared = FALSE)]
+    ids <- setdiff(ids, p)
+  })
+  
   scores_df <- data.frame(matrix(NA, nrow = n_year_groups, ncol = n_heights))
   colnames(scores_df) <- names(spatial_list[[1]])
   
-  out <- sapply(seq_len(n_year_groups), function(i) {
+  for (i in seq_len(n_year_groups)) {
     
     spatial_year <- spatial_list[[i]]
     
     scores <- sapply(seq_len(n_heights), function(j) {
       
       grid <- spatial_year[[j]]
-      
+
       grid$prop_ol[is.na(grid$prop_ol)] <- 0
-      grid$prop_ol <- ifelse(grid$prop_ol >= threshold, 1, 0)
-      
-      
+      grid$prop_ol <- ifelse(grid$prop_ol > threshold, 1, 0)
+
+      mean(sapply(idx, function(p) {
+        sum(grid$prop_ol[nb_list[[p]]]) / length(sum(grid$prop_ol[nb_list[[p]]]))
+      }))
       
     })
     
+    scores_df[i, ] <- scores
     
-  })
+  }
+  
+  scores_df
+  
 }
-
-# Run connectivity analysis on example grid (Year 10 @ 1m (100cm) height) - IN PROGRESS
-# sample_connectivity <- run_connectivity(resistance_grid = year_10_100)

@@ -1,5 +1,5 @@
 library(sf)
-source('R/utility_functions.R')
+source('R/utility.R')
 
 # Load background spatial data
 plant_points <- read_sf("data/gis/Plant_Data.shp")
@@ -55,6 +55,9 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
   
   # Create grid from boundary based on specified grid shape and approximate cell size
   master_grid <- create_grid(boundary = boundary, hex_gridshape = hex_gridshape, cellarea = cellarea)
+  
+  # # Get grid spacing
+  # grid_spacing <- attr(master_grid, 'gridspacing')
   
   # Determine cell spacing distance
   cell_dist <- sqrt(2 * cellarea / (3 * sqrt(3))) * sqrt(3)
@@ -173,6 +176,9 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
   # Add attribute to identify gridshape
   attr(out, 'gridshape') <- "hex"
   if(hex_gridshape == FALSE) attr(out, 'gridshape') <- "rect"
+  
+  # Add attribute to identify grid spacing
+  attr(out, 'gridspacing') <- cell_dist
   
   out
 }

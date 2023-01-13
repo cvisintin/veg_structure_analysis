@@ -21,6 +21,12 @@ create_grid <- function(boundary, # Boundary to create grid cells over
     vertical_spacing <- inner_radius
   }
   
+  # # Determine grid spacing
+  # grid_spacing <- horizontal_spacing
+  # if (hex_gridshape) {
+  #   grid_spacing <- 2 * inner_radius
+  # }
+  
   # Increase boundary to ensure adequate coverage
   boundary_buff <- st_buffer(boundary, 2 * horizontal_spacing)
   
@@ -90,6 +96,9 @@ create_grid <- function(boundary, # Boundary to create grid cells over
   # Reset numbering in ids
   grid$id <- seq_len(nrow(grid))
   
+  # # Add attribute to identify grid spacing
+  # attr(grid, 'gridspacing') <- grid_spacing
+  
   grid
 }
 
@@ -154,6 +163,9 @@ extract_1m_coverage <- function(spatial_list) {
     
   })
 }
+
+
+
 
 #### Original function by Stefan Jünger
 #### https://stefanjuenger.github.io/gesis-workshop-geospatial-techniques-R/slides/2_4_Advanced_Maps_II/2_4_Advanced_Maps_II.html#8

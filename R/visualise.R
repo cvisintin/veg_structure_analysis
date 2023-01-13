@@ -5,7 +5,9 @@ library(grid)
 library(gridExtra)
 library(png)
 library(dplyr)
-source('R/utility_functions.R')
+library(tidyr)
+library(viridis)
+source('R/utility.R')
 
 # Load grids file
 load(file = "output/years_1_30")
@@ -302,9 +304,10 @@ richness
 ### From https://r-graph-gallery.com/295-basic-circular-barplot.html
 
 months <- c("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+n_months <- length(months)
 
 phenology_data <- data.frame(
-  id = seq(1, 12, 1),
+  id = seq_len(n_months),
   value = sapply(months, function(month) sum(grepl(month, plant_points$phenology)))
 )
 
@@ -357,12 +360,12 @@ phenology
 
 ### Coverage at 1m ###
 coverage_data <- data.frame(
-  id = seq(1, n_year_groups, 1),
+  id = factor(seq_len(n_year_groups)),
   value = extract_1m_coverage(years_1_30)
 )
 
 # Make the plot
-coverage <- ggplot(coverage_data, aes(x = as.factor(id), y = value)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
+coverage <- ggplot(coverage_data, aes(x = id, y = value)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
   
   # This add the bars with a color
   geom_bar(stat = "identity", fill = "#c9837d") +
@@ -387,29 +390,42 @@ coverage <- ggplot(coverage_data, aes(x = as.factor(id), y = value)) +       # N
             color = "black", fontface = "bold", alpha = 0.6, size = 2.5,
   ) +#angle = label_data$angle, inherit.aes = FALSE)
   
-  geom_image(data = data.frame(xx = min(coverage_data$value), yy = -max(coverage_data$value) * 1.1, image = "data/images/shrub_icon.png"), mapping = aes(xx, yy, image = image), size = .25, inherit.aes = FALSE)
+  geom_image(data = data.frame(xx = 1, yy = -max(coverage_data$value) * 1.1, image = "data/images/shrub_icon.png"), mapping = aes(xx, yy, image = image), size = .25, inherit.aes = FALSE)
 
 coverage
 
 
 ### Connectivity ###
-connectivity_data <- data.frame(
-  id = seq(1, n_year_groups, 1),
-  value = estimate_connectivity(years_1_30)
-)
+connectivity_data_w <- estimate_connectivity(years_1_30)
+
+connectivity_score <- base::round(mean(as.matrix(connectivity_data_w)), 2)
+
+connectivity_data_w$remainder <- apply(connectivity_data_w, 1, function(x) ncol(connectivity_data_w) - sum(x))
+
+connectivity_data <- gather(connectivity_data_w, key = "group", value = "value")
+
+connectivity_data$id <- factor(rep(1:n_year_groups, ncol(connectivity_data_w)))
+connectivity_data$group <- factor(connectivity_data$group, levels = rev(unique(connectivity_data$group)))
+
+max_value <- max(connectivity_data$value)
+
+conn_colours <- c(colorRampPalette(c("#9fbfa3", "#3e6343"))(ncol(connectivity_data_w) - 1), "#e1e1e1")
+conn_colours <- c(viridis(ncol(connectivity_data_w) - 1, end = 0.8), "#e1e1e1")
 
 # Make the plot
-connectivity <- ggplot(connectivity_data, aes(x = as.factor(id), y = value)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
+connectivity <- ggplot(connectivity_data, aes(x = id, y = value, fill = group)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
   
   # This add the bars with a color
-  geom_bar(stat = "identity", fill = "#c9837d") +
+  geom_bar(position = "stack", stat = "identity") +
+  scale_fill_manual(values = rev(conn_colours)) +
   
   # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
-  ylim(-max(connectivity_data$value) * 1.1, max(connectivity_data$value) * 1.15) +
+  ylim(-max(connectivity_data$value) * 1.1, max(connectivity_data$value) * 1.3) +
   
   # Custom the theme: no axis title and no cartesian grid
   theme_minimal() +
   theme(
+    legend.position = "none",
     axis.text = element_blank(),
     axis.title = element_blank(),
     panel.grid = element_blank(),
@@ -417,14 +433,14 @@ connectivity <- ggplot(connectivity_data, aes(x = as.factor(id), y = value)) +  
   ) +
   
   # This makes the coordinate polar instead of cartesian.
-  coord_polar(start = -(2 / nrow(connectivity_data))) +
+  coord_polar(start = -(2 / nrow(connectivity_data_w))) +
   
   # Add the labels, using the label_data dataframe that we have created before
-  geom_text(data = connectivity_data, aes(x = id, y = value * 0.5, label = paste0("Y", toupper(row.names(connectivity_data)))),#, hjust = hjust),
+  geom_text(data = connectivity_data[1:nrow(connectivity_data_w), ], aes(x = unique(id), y = max_value, label = paste0("Y", row.names(connectivity_data_w))),#, hjust = hjust),
             color = "black", fontface = "bold", alpha = 0.6, size = 2.5,
   ) +#angle = label_data$angle, inherit.aes = FALSE)
   
-  geom_image(data = data.frame(xx = min(connectivity_data$value), yy = -max(connectivity_data$value) * 1.1, image = "data/images/shrub_icon.png"), mapping = aes(xx, yy, image = image), size = .25, inherit.aes = FALSE)
+  geom_text(data = data.frame(xx = max(connectivity_data$value), yy = -max(connectivity_data$value) * 1.1, label = paste0(connectivity_score, "\nCONNECTIVITY\nSCORE")), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
 
 connectivity
 
@@ -434,12 +450,12 @@ grid.arrange(grobs = list(density,
                           texture,
                           sizes,
                           endemism,
-                          type,
                           richness,
+                          type,
                           phenology,
-                          coverage,
-                          NULL
-                          ), ncol = 3)
+                          connectivity,
+                          coverage
+), ncol = 3)
 dev.off()
 
 
