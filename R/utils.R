@@ -507,6 +507,145 @@ plot_percent <- function(spatial_points, variable_name, colour, label) {
     geom_text(data = data.frame(xx = 0, yy = -max(data$values) * 0.5, label = paste0(native_prop, "%\n", label)), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
 }
 
+plot_circ_bar <- function(spatial_points, spatial_list = NULL, variable_name, colours = NULL, polar_rotation = NULL, stacked = FALSE) {
+  
+  if(variable_name == "richness") {
+    data <- data.frame(
+      id = factor(seq(1, length(unique(spatial_points$species)), 1)),
+      value = sapply(unique(spatial_points$species), function(sp) length(which(spatial_points$species == sp)))
+    )
+  }
+  
+  if(variable_name == "phenology") {
+    months <- c("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+    n_months <- length(months)
+    
+    data <- data.frame(
+      id = factor(seq_len(n_months)),
+      value = sapply(months, function(month) sum(grepl(month, spatial_points$phenology)))
+    )
+    
+    img <- readPNG("data/images/flower_icon.png")
+    g <- rasterGrob(img, interpolate = TRUE)
+  }
+  
+  if(variable_name == "coverage" & !is.null(spatial_list)) {
+    n_year_groups <- length(spatial_list)
+    
+    data <- data.frame(
+      id = factor(seq_len(n_year_groups)),
+      value = extract_1m_coverage(spatial_list)
+    )
+  }
+  
+  if(variable_name == "connectivity") {
+    n_year_groups <- length(spatial_list)
+    
+    data_w <- estimate_connectivity(spatial_list)
+    
+    score <- base::round(mean(as.matrix(data_w)), 2)
+    
+    data_w$remainder <- apply(data_w, 1, function(x) ncol(data_w) - sum(x))
+    
+    data <- gather(data_w, key = "group", value = "value")
+    
+    data$id <- factor(rep(1:n_year_groups, ncol(data_w)))
+    data$group <- factor(data$group, levels = rev(unique(data$group)))
+    
+    max_value <- max(data$value)
+    colours <- c(viridis(ncol(data_w) - 1, end = 0.8), "#e1e1e1")
+  }
+  
+  if(!stacked) p <- ggplot(data, aes(x = as.factor(id), y = value))
+      if(stacked) p <- ggplot(data, aes(x = id, y = value, fill = group))
+          
+          # This add the bars with a color
+          if(!stacked) p <- p + geom_bar(stat = "identity", fill = colours)
+          if(stacked) p <- p + geom_bar(position = "stack", stat = "identity")
+          if(stacked) p <- p + scale_fill_manual(values = rev(colours))
+          
+          # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
+          if(!stacked & variable_name != "coverage") p <- p + ylim(-max(data$value), max(data$value) * 1.5)
+          if(!stacked & variable_name == "coverage") p <- p + ylim(-max(coverage_data$value) * 1.1, max(coverage_data$value) * 1.15)
+          if(stacked) p <- p + ylim(-max(data$value) * 1.1, max(data$value) * 1.3)
+          
+          # Custom the theme: no axis title and no cartesian grid
+          p <- p + theme_minimal() +
+          theme(
+            axis.text = element_blank(),
+            axis.title = element_blank(),
+            panel.grid = element_blank(),
+            plot.margin = unit(rep(-1, 4), "cm")
+          )
+          
+          if(stacked) p <- p + theme(legend.position = "none")
+          
+          # This makes the coordinate polar instead of cartesian
+          if(is.null(polar_rotation)) p <- p + coord_polar(start = -(2 / nrow(data)))
+          if(!is.null(polar_rotation)) p <- p + coord_polar(start = polar_rotation)
+          
+          # Add additional annotation
+          if(variable_name == "richness") {
+            p <- p + geom_text(data = data.frame(xx = min(data$value),
+                                        yy = -max(data$value),
+                                        label = paste0(shannon_evenness(data$value), "\nEVENNESS\nSCORE")),
+                      mapping = aes(xx, yy, label = label),
+                      size = 4,
+                      inherit.aes = FALSE)
+          }
+      
+      if(variable_name == "phenology") {
+        p <- p + geom_text(data = data,
+                  aes(x = id, y = value * 0.5, label = toupper(row.names(data))),
+                  color = "black",
+                  fontface = "bold",
+                  alpha = 0.6,
+                  size = 2.5) +
+          
+          geom_image(data = data.frame(xx = min(data$value),
+                                       yy = -max(data$value),
+                                       image = "data/images/flower_icon.png"),
+                     mapping = aes(xx, yy, image = image),
+                     size = .25,
+                     inherit.aes = FALSE)
+      }
+      
+      if(variable_name == "coverage" & !is.null(spatial_list)) {
+        p <- p + geom_text(data = data,
+                  aes(x = id, y = value * 0.5, label = paste0("Y", toupper(row.names(data)))),
+                  color = "black",
+                  fontface = "bold",
+                  alpha = 0.6,
+                  size = 2.5) +
+          
+          geom_image(data = data.frame(xx = 1,
+                                       yy = -max(data$value) * 1.1,
+                                       image = "data/images/shrub_icon.png"),
+                     mapping = aes(xx, yy, image = image),
+                     size = .25,
+                     inherit.aes = FALSE)
+      }
+      
+      if(variable_name == "connectivity") {
+        p <- p + geom_text(data = data[1:nrow(data_w), ],
+                  aes(x = unique(id), y = max_value, label = paste0("Y", row.names(data_w))),
+                  color = "black",
+                  fontface = "bold",
+                  alpha = 0.6,
+                  size = 2.5) +
+          
+          geom_text(data = data.frame(xx = max(data$value),
+                                      yy = -max(data$value) * 1.1,
+                                      label = paste0(score, "\nCONNECTIVITY\nSCORE")),
+                    mapping = aes(xx, yy, label = label),
+                    size = 4,
+                    inherit.aes = FALSE)
+      }
+      
+      p
+}
+
+
 
 #### Original function by Stefan Jünger
 #### https://stefanjuenger.github.io/gesis-workshop-geospatial-techniques-R/slides/2_4_Advanced_Maps_II/2_4_Advanced_Maps_II.html#8
