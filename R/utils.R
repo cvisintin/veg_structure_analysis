@@ -167,6 +167,8 @@ extract_1m_coverage <- function(spatial_list) {
 convert_combine <- function(point_locations, # Spatial geometry and attributes of plants
                             polygon_locations # Spatial geometry and attributes of planted areas
 ) {
+  check_spatial_input(point_locations = point_locations, polygon_locations = polygon_locations)
+  
   n_polys <- nrow(polygon_locations)
   
   point_list <- lapply(seq_len(n_polys), function(i) {
@@ -194,6 +196,8 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
                               veg_layers_path = NULL, # Path to folder where vegetation layers should be written
                               overlap_grids_path = NULL # Path to folder where grid layers should be written
 ) {
+  # Verify input data
+  check_spatial_input(point_locations = point_locations)
   
   # Create grid from boundary based on specified grid shape and approximate cell size
   master_grid <- create_grid(boundary = boundary, hex_gridshape = hex_gridshape, cellarea = cellarea)
@@ -645,7 +649,38 @@ plot_circ_bar <- function(spatial_points, spatial_list = NULL, variable_name, co
       p
 }
 
-
+check_spatial_input <- function(point_locations, polygon_locations = NULL) {
+  # Verify the geometries
+  if(!all(st_geometry_type(point_locations) == "POINT")) stop("All specified geometry are not points, check input geometry type")
+  
+  if(!is.null(polygon_locations)) {
+    if(!all(st_geometry_type(polygon_locations) == "POLYGON")) stop("All specified geometry are not polygons, check input geometry type")
+  }
+  
+  # Verify the correct column names are used
+  correct_names <- c("species",
+                     "ref_height",
+                     "endemism",
+                     "phenology",
+                     "type",
+                     "form",
+                     "density",
+                     "texture",
+                     "max_height",
+                     "max_width",
+                     "year_max",
+                     "spacing",
+                     "coverage")
+  
+  point_data <-as.data.frame(st_drop_geometry(point_locations))
+  if(!identical(names(point_data), correct_names)) stop("Check column names in point data; they are not as required")
+  
+  if(!is.null(polygon_locations)) {
+    polygon_data <-as.data.frame(st_drop_geometry(polygon_locations))
+    if(!identical(names(point_data), correct_names)) stop("Check column names in polygon data; they are not as required")  }
+ 
+  NULL 
+}
 
 #### Original function by Stefan Jünger
 #### https://stefanjuenger.github.io/gesis-workshop-geospatial-techniques-R/slides/2_4_Advanced_Maps_II/2_4_Advanced_Maps_II.html#8
