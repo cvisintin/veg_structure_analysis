@@ -187,7 +187,7 @@ convert_combine <- function(point_locations, # Spatial geometry and attributes o
 }
 
 process_structure <- function(point_locations, # Spatial geometry and attributes of plants
-                              obstructions, # Geometry that may obstruct plant growth in horizontal plane
+                              obstructions = NULL, # Geometry that may obstruct plant growth in horizontal plane
                               boundary, # Geometry that defines the boundary of the site
                               cut_heights = c(0.3, 1.0, 1.7, 2.4, 3.1), # Height datums in meters
                               years = 1, # Years of interest
@@ -260,13 +260,16 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
         })
         
         # Create a buffered region around all plants based on geometry forms for the given year
-        buffered_area <- st_union(st_buffer(point_locations[ids, ], (plant_widths[ids] / 2) * mults))
+        planted_area <- st_union(st_buffer(point_locations[ids, ], (plant_widths[ids] / 2) * mults))
+        
+        # Check for obstruction data
+        obstruct <- !is.null(obstructions)
         
         # Determine which obstructions are above cut height
-        obstruction_idx <- which(obstructions$height > cut_height)
+        if (obstruct) obstruction_idx <- which(obstructions$height > cut_height)
         
         # Remove areas with obstructions (e.g. buildings)
-        planted_area <- st_difference(buffered_area, obstructions$geometry[obstruction_idx])
+        if (obstruct) planted_area <- st_difference(planted_area, obstructions$geometry[obstruction_idx])
         
         # If path is provided, write out vegetation footprints for given year and selected heights
         # using centimeters to designate height (padded with zeros)
@@ -463,10 +466,13 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
   # Compute label position
   data$labelPosition <- (data$ymax + data$ymin) / 2
   
+  # Check for any zero values
+  idx <- which(data$values > 0)
+  
   # Make the plot
   ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = category)) +
     geom_rect() +
-    geom_text(x = 3.5, aes(y = labelPosition, label = category), size = 4) +
+    geom_text(x = 3.5, aes(y = labelPosition[idx], label = category[idx]), size = 4) +
     scale_fill_manual(values = colour_palette) +
     coord_polar(theta = "y") +
     xlim(c(0.8, 4)) +
@@ -481,12 +487,21 @@ plot_percent <- function(spatial_points, variable_name, colour, label) {
   spatial_points <- as.data.frame(spatial_points)
   
   props <- table(spatial_points[ , variable_name])
-  native_prop <- base::round((props[2] / sum(props)) * 100)
-  exotic_prop <- base::round((props[1] / sum(props)) * 100)
+  
+  if(length(props) == 1 && names(props) %in% c("native", "evergreen")) {
+    props <- c(0, props)
+  }
+  
+  if(length(props) == 1 && names(props) %in% c("exotic", "deciduous")) {
+    props <- c(props, 0)
+  }
+  
+  zero_prop <- base::round((props[1] / sum(props)) * 100)
+  one_prop <- base::round((props[2] / sum(props)) * 100)
   
   data <- data.frame(
     category = 1:100,
-    values = c(rep(1, native_prop), rep(0, exotic_prop))
+    values = c(rep(0, zero_prop), rep(1, one_prop))
   )
   
   # Compute the cumulative percentages (top of each rectangle)
@@ -495,7 +510,7 @@ plot_percent <- function(spatial_points, variable_name, colour, label) {
   # Compute the bottom of each rectangle
   data$ymin = c(0, head(data$ymax, n = -1))
   
-  pr_palette <- c(rep(colour, native_prop),  rep("#e8e8e8", exotic_prop))
+  pr_palette <- c(rep(colour, one_prop),  rep("#e8e8e8", zero_prop))
   
   # Make the plot
   ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 5, xmin = 1, fill = factor(category))) +
@@ -508,7 +523,7 @@ plot_percent <- function(spatial_points, variable_name, colour, label) {
     theme_void() +
     theme(legend.position = "none") +
     
-    geom_text(data = data.frame(xx = 0, yy = -max(data$values) * 0.5, label = paste0(native_prop, "%\n", label)), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
+    geom_text(data = data.frame(xx = 0, yy = -max(data$values) * 0.5, label = paste0(one_prop, "%\n", label)), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
 }
 
 plot_circ_bar <- function(spatial_points, spatial_list = NULL, variable_name, colours = NULL, polar_rotation = NULL, stacked = FALSE) {
@@ -561,92 +576,92 @@ plot_circ_bar <- function(spatial_points, spatial_list = NULL, variable_name, co
   }
   
   if(!stacked) p <- ggplot(data, aes(x = as.factor(id), y = value))
-      if(stacked) p <- ggplot(data, aes(x = id, y = value, fill = group))
-          
-          # This add the bars with a color
-          if(!stacked) p <- p + geom_bar(stat = "identity", fill = colours)
-          if(stacked) p <- p + geom_bar(position = "stack", stat = "identity")
-          if(stacked) p <- p + scale_fill_manual(values = rev(colours))
-          
-          # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
-          if(!stacked & variable_name != "coverage") p <- p + ylim(-max(data$value), max(data$value) * 1.5)
-          if(!stacked & variable_name == "coverage") p <- p + ylim(-max(coverage_data$value) * 1.1, max(coverage_data$value) * 1.15)
-          if(stacked) p <- p + ylim(-max(data$value) * 1.1, max(data$value) * 1.3)
-          
-          # Custom the theme: no axis title and no cartesian grid
-          p <- p + theme_minimal() +
-          theme(
-            axis.text = element_blank(),
-            axis.title = element_blank(),
-            panel.grid = element_blank(),
-            plot.margin = unit(rep(-1, 4), "cm")
-          )
-          
-          if(stacked) p <- p + theme(legend.position = "none")
-          
-          # This makes the coordinate polar instead of cartesian
-          if(is.null(polar_rotation)) p <- p + coord_polar(start = -(2 / nrow(data)))
-          if(!is.null(polar_rotation)) p <- p + coord_polar(start = polar_rotation)
-          
-          # Add additional annotation
-          if(variable_name == "richness") {
-            p <- p + geom_text(data = data.frame(xx = min(data$value),
-                                        yy = -max(data$value),
-                                        label = paste0(shannon_evenness(data$value), "\nEVENNESS\nSCORE")),
-                      mapping = aes(xx, yy, label = label),
-                      size = 4,
-                      inherit.aes = FALSE)
-          }
+  if(stacked) p <- ggplot(data, aes(x = id, y = value, fill = group))
+  
+  # This add the bars with a color
+  if(!stacked) p <- p + geom_bar(stat = "identity", fill = colours)
+  if(stacked) p <- p + geom_bar(position = "stack", stat = "identity")
+  if(stacked) p <- p + scale_fill_manual(values = rev(colours))
+  
+  # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
+  if(!stacked & variable_name != "coverage") p <- p + ylim(-max(data$value), max(data$value) * 1.5)
+  if(!stacked & variable_name == "coverage") p <- p + ylim(-max(data$value) * 1.1, max(data$value) * 1.15)
+  if(stacked) p <- p + ylim(-max(data$value) * 1.1, max(data$value) * 1.3)
+  
+  # Custom the theme: no axis title and no cartesian grid
+  p <- p + theme_minimal() +
+    theme(
+      axis.text = element_blank(),
+      axis.title = element_blank(),
+      panel.grid = element_blank(),
+      plot.margin = unit(rep(-1, 4), "cm")
+    )
+  
+  if(stacked) p <- p + theme(legend.position = "none")
+  
+  # This makes the coordinate polar instead of cartesian
+  if(is.null(polar_rotation)) p <- p + coord_polar(start = -(2 / nrow(data)))
+  if(!is.null(polar_rotation)) p <- p + coord_polar(start = polar_rotation)
+  
+  # Add additional annotation
+  if(variable_name == "richness") {
+    p <- p + geom_text(data = data.frame(xx = min(data$value),
+                                         yy = -max(data$value),
+                                         label = paste0(shannon_evenness(data$value), "\nEVENNESS\nSCORE")),
+                       mapping = aes(xx, yy, label = label),
+                       size = 4,
+                       inherit.aes = FALSE)
+  }
+  
+  if(variable_name == "phenology") {
+    p <- p + geom_text(data = data,
+                       aes(x = id, y = value * 0.5, label = toupper(row.names(data))),
+                       color = "black",
+                       fontface = "bold",
+                       alpha = 0.6,
+                       size = 2.5) +
       
-      if(variable_name == "phenology") {
-        p <- p + geom_text(data = data,
-                  aes(x = id, y = value * 0.5, label = toupper(row.names(data))),
-                  color = "black",
-                  fontface = "bold",
-                  alpha = 0.6,
-                  size = 2.5) +
-          
-          geom_image(data = data.frame(xx = min(data$value),
-                                       yy = -max(data$value),
-                                       image = "data/images/flower_icon.png"),
-                     mapping = aes(xx, yy, image = image),
-                     size = .25,
-                     inherit.aes = FALSE)
-      }
+      geom_image(data = data.frame(xx = min(data$value),
+                                   yy = -max(data$value),
+                                   image = "data/images/flower_icon.png"),
+                 mapping = aes(xx, yy, image = image),
+                 size = .25,
+                 inherit.aes = FALSE)
+  }
+  
+  if(variable_name == "coverage" & !is.null(spatial_list)) {
+    p <- p + geom_text(data = data,
+                       aes(x = id, y = value * 0.5, label = paste0("Y", toupper(row.names(data)))),
+                       color = "black",
+                       fontface = "bold",
+                       alpha = 0.6,
+                       size = 2.5) +
       
-      if(variable_name == "coverage" & !is.null(spatial_list)) {
-        p <- p + geom_text(data = data,
-                  aes(x = id, y = value * 0.5, label = paste0("Y", toupper(row.names(data)))),
-                  color = "black",
-                  fontface = "bold",
-                  alpha = 0.6,
-                  size = 2.5) +
-          
-          geom_image(data = data.frame(xx = 1,
-                                       yy = -max(data$value) * 1.1,
-                                       image = "data/images/shrub_icon.png"),
-                     mapping = aes(xx, yy, image = image),
-                     size = .25,
-                     inherit.aes = FALSE)
-      }
+      geom_image(data = data.frame(xx = 1,
+                                   yy = -max(data$value) * 1.1,
+                                   image = "data/images/shrub_icon.png"),
+                 mapping = aes(xx, yy, image = image),
+                 size = .25,
+                 inherit.aes = FALSE)
+  }
+  
+  if(variable_name == "connectivity") {
+    p <- p + geom_text(data = data[1:nrow(data_w), ],
+                       aes(x = unique(id), y = max_value, label = paste0("Y", row.names(data_w))),
+                       color = "black",
+                       fontface = "bold",
+                       alpha = 0.6,
+                       size = 2.5) +
       
-      if(variable_name == "connectivity") {
-        p <- p + geom_text(data = data[1:nrow(data_w), ],
-                  aes(x = unique(id), y = max_value, label = paste0("Y", row.names(data_w))),
-                  color = "black",
-                  fontface = "bold",
-                  alpha = 0.6,
-                  size = 2.5) +
-          
-          geom_text(data = data.frame(xx = max(data$value),
-                                      yy = -max(data$value) * 1.1,
-                                      label = paste0(score, "\nCONNECTIVITY\nSCORE")),
-                    mapping = aes(xx, yy, label = label),
-                    size = 4,
-                    inherit.aes = FALSE)
-      }
-      
-      p
+      geom_text(data = data.frame(xx = max(data$value),
+                                  yy = -max(data$value) * 1.1,
+                                  label = paste0(score, "\nCONNECTIVITY\nSCORE")),
+                mapping = aes(xx, yy, label = label),
+                size = 4,
+                inherit.aes = FALSE)
+  }
+  
+  p
 }
 
 check_spatial_input <- function(point_locations, polygon_locations = NULL) {
@@ -678,7 +693,7 @@ check_spatial_input <- function(point_locations, polygon_locations = NULL) {
   if(!is.null(polygon_locations)) {
     polygon_data <-as.data.frame(st_drop_geometry(polygon_locations))
     if(!identical(names(point_data), correct_names)) stop("Check column names in polygon data; they are not as required")  }
- 
+  
   NULL 
 }
 

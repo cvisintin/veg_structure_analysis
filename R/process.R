@@ -22,3 +22,14 @@ save(home_ex_years_1_30, file = "output/home_ex_years_1_30")
 
 
 # Load background spatial data for public park example
+park_ex_plant_points <- read_sf("data/gis/Plant_Data_Park.shp")
+park_ex_site_boundary <- read_sf("data/gis/Site_Boundary_Park.shp")
+
+# Process vegetation structure data for specified years 
+park_ex_years_1_30 <- process_structure(point_locations = park_ex_plant_points,
+                                        obstructions = NULL,
+                                        boundary = park_ex_site_boundary,
+                                        years = 1:30,
+                                        cellarea = 10)
+
+save(park_ex_years_1_30, file = "output/park_ex_years_1_30")

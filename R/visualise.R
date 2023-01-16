@@ -12,8 +12,6 @@ source('R/utils.R')
 # Load background spatial data
 plant_points <- read_sf("data/gis/Plant_Data_Home.shp")
 planting_polygons <- read_sf("data/gis/Planting_Data_Home.shp")
-building <- read_sf("data/gis/Building_Mass_Home.shp")
-site_boundary <- read_sf("data/gis/Site_Boundary_Home.shp")
 
 # Convert planting polygons to points and combine with existing plant points
 home_ex_plant_points <- convert_combine(point_locations = plant_points,
@@ -83,6 +81,82 @@ connectivity_plot <- plot_circ_bar(spatial_points = home_ex_plant_points,
                                    stacked = TRUE)
 
 png(paste0("figs/home_ex_results.png"), height = 2400, width = 2400, pointsize = 4, res = 300)
+grid.arrange(grobs = list(density_plot,
+                          texture_plot,
+                          size_plot,
+                          endemism_plot,
+                          richness_plot,
+                          type_plot,
+                          phenology_plot,
+                          connectivity_plot,
+                          coverage_plot
+), ncol = 3)
+dev.off()
+
+
+####################################################################
+
+# Load background spatial data
+plant_points <- read_sf("data/gis/Plant_Data_Park.shp")
+
+# Load grids file
+load(file = "output/park_ex_years_1_30")
+
+### Density ###
+density_plot <- plot_classes(spatial_points = park_ex_plant_points,
+                             variable_name = "density",
+                             colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
+                             image_path = "data/images/leaves_icon.png")
+
+### Texture ###
+texture_plot <- plot_classes(spatial_points = park_ex_plant_points,
+                             variable_name = "texture",
+                             colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
+                             image_path = "data/images/texture_icon.png")
+
+### Size ###
+size_plot <- plot_classes(spatial_points = park_ex_plant_points,
+                          variable_name = "size",
+                          colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
+                          image_path = "data/images/vegetation_icon.png")
+
+### Endemism ###
+endemism_plot <- plot_percent(spatial_points = park_ex_plant_points,
+                              variable_name = "endemism",
+                              colour = "#a072a6",
+                              label = "NATIVE")
+
+### Type ###
+type_plot <- plot_percent(spatial_points = park_ex_plant_points,
+                          variable_name = "type",
+                          colour = "#a19a65",
+                          label = "EVERGREEN")
+
+### Species richness ###
+richness_plot <- plot_circ_bar(spatial_points = park_ex_plant_points,
+                               variable_name = "richness",
+                               colours = "#858383",
+                               polar_rotation = 0.25)
+
+### Phenology ###
+phenology_plot <- plot_circ_bar(spatial_points = park_ex_plant_points,
+                                variable_name = "phenology",
+                                colours = "#b0d4d6",
+                                polar_rotation = 0.25)
+
+### Coverage at 1m ###
+coverage_plot <- plot_circ_bar(spatial_points = park_ex_plant_points,
+                               spatial_list = park_ex_years_1_30,
+                               variable_name = "coverage",
+                               colours = "#c9837d")
+
+### Connectivity ###
+connectivity_plot <- plot_circ_bar(spatial_points = park_ex_plant_points,
+                                   spatial_list = park_ex_years_1_30,
+                                   variable_name = "connectivity",
+                                   stacked = TRUE)
+
+png(paste0("figs/park_ex_results.png"), height = 2400, width = 2400, pointsize = 4, res = 300)
 grid.arrange(grobs = list(density_plot,
                           texture_plot,
                           size_plot,
