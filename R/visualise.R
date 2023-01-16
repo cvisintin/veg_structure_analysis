@@ -21,10 +21,10 @@ home_ex_plant_points <- convert_combine(point_locations = plant_points,
 load(file = "output/home_ex_years_1_30")
 
 # Create spatial outputs
-create_images(home_ex_years_1_30, path = "figs/")
+create_images(home_ex_years_1_30, path = "figs/", filename = "home_ex_veg_structure")
 
 # Animate spatial outputs
-system('convert -delay 50 -dispose previous -loop 0 figs/* figs/animations/veg_growth.gif')
+system('convert -delay 50 -dispose previous -loop 0 figs/home_ex* figs/animations/home_ex_veg_growth.gif')
 
 ### Density ###
 density_plot <- plot_classes(spatial_points = home_ex_plant_points,
@@ -101,6 +101,12 @@ plant_points <- read_sf("data/gis/Plant_Data_Park.shp")
 
 # Load grids file
 load(file = "output/park_ex_years_1_30")
+
+# Create spatial outputs
+create_images(park_ex_years_1_30, path = "figs/", filename = "park_ex_veg_structure")
+
+# Animate spatial outputs
+system('convert -delay 50 -dispose previous -loop 0 figs/park_ex_veg* figs/animations/park_ex_veg_growth.gif')
 
 ### Density ###
 density_plot <- plot_classes(spatial_points = park_ex_plant_points,

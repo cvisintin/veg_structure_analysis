@@ -390,7 +390,7 @@ estimate_connectivity <- function(spatial_list,
   
 }
 
-create_images <- function(spatial_list, path) {
+create_images <- function(spatial_list, path, filename) {
   
   # Extract unique years from file list
   years <- names(spatial_list)
@@ -427,7 +427,7 @@ create_images <- function(spatial_list, path) {
     } 
     
     # Write out PNG of overlap grids for all heights
-    png(paste0(path, "veg_structure_", years[j], ".png"), height = 150 * length(spatial_year), width = 400, pointsize = 12, res = 300)
+    png(paste0(path, filename, "_", years[j], ".png"), height = 150 * length(spatial_year), width = 400, pointsize = 12, res = 300)
     grid.arrange(grobs = rev(plot_list), ncol = 1)
     dev.off()
     
