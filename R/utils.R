@@ -209,31 +209,16 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
   cell_dist <- sqrt(2 * cellarea / (3 * sqrt(3))) * sqrt(3)
   if(hex_gridshape == FALSE) cell_dist <- sqrt(cellarea)
   
-  # # Determine maximum height of vegetation plus 5%
-  # max_veg_height <- max(point_locations$max_height) * 1.05
-  # 
-  # # Number of vertical layers at cell spacing distance within maximum vegetation height
-  # n_vert_layers <- max_veg_height %/% cell_dist
-  # 
-  # # If cut_heights are not specified, use regular spacing based on distance between cells
-  # if(is.null(cut_heights)) cut_heights <- (1:n_vert_layers) * cell_dist
-  # 
-  # # Set default switch for added 1m cut height
-  # add_1m <- FALSE
-  # 
-  # # If 1m is not specified in cut heights, add it
-  # if(!1 %in% cut_heights) {
-  #   add_1m <- TRUE
-  #   cut_heights <- sort(c(1, cut_heights))
-  # }
-  
   out <- lapply(years, function(year) {  
     
     print(paste0("Processing year ", year))
     
+    # Calculate ages in years from initial heights
+    plant_ages <- (point_locations$ini_height / point_locations$max_height) * point_locations$year_max
+    
     # Calculate all relative plant heights and widths for the given year (from reference height)
-    plant_heights <- point_locations$max_height * (pmin(year, point_locations$year_max) / point_locations$year_max)
-    plant_widths <- point_locations$max_width * (pmin(year, point_locations$year_max) / point_locations$year_max)
+    plant_heights <- point_locations$max_height * (pmin(year + plant_ages, point_locations$year_max) / point_locations$year_max)
+    plant_widths <- point_locations$max_width * (pmin(year + plant_ages, point_locations$year_max) / point_locations$year_max)
     
     # Generate id lists for plants that intersect each height datum for the given year
     plant_idx <- lapply(cut_heights, function(cut_height) which(plant_heights + point_locations$ref_height >= cut_height & cut_height >= point_locations$ref_height))
@@ -529,9 +514,11 @@ plot_percent <- function(spatial_points, variable_name, colour, label) {
 plot_circ_bar <- function(spatial_points, spatial_list = NULL, variable_name, colours = NULL, polar_rotation = NULL, stacked = FALSE) {
   
   if(variable_name == "richness") {
+    species <- sub("(\\w+\\s+\\w+).*", "\\1", spatial_points$species)
+    
     data <- data.frame(
-      id = factor(seq(1, length(unique(spatial_points$species)), 1)),
-      value = sapply(unique(spatial_points$species), function(sp) length(which(spatial_points$species == sp)))
+      id = factor(seq(1, length(unique(species)), 1)),
+      value = sapply(unique(species), function(sp) length(which(species == sp)))
     )
   }
   
