@@ -1,5 +1,12 @@
 library(sf)
 library(dplyr)
+library(ggplot2)
+library(ggimage)
+library(grid)
+library(gridExtra)
+library(png)
+library(tidyr)
+library(viridis)
 
 zero_to_one <- function(x) {
   (x - min(x)) / (max(x) - min(x))
@@ -318,6 +325,7 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
 }
 
 estimate_connectivity <- function(spatial_list,
+                                  #obstructions,
                                   threshold = 0.3) {
   # Extract unique years from file list
   years <- names(spatial_list)
@@ -340,6 +348,9 @@ estimate_connectivity <- function(spatial_list,
   points <- st_sf(data.frame("id" = 1:length(points)), geometry = points)
   
   idx <- master_grid$id
+  
+  # Determine which points to exclude at each cut height
+  #obstruction_idx <- which(obstructions$height >= cut_height)
   
   # Create master neighborhood list
   nb_list <- lapply(idx, function(p) {
@@ -511,7 +522,13 @@ plot_percent <- function(spatial_points, variable_name, colour, label) {
     geom_text(data = data.frame(xx = 0, yy = -max(data$values) * 0.5, label = paste0(one_prop, "%\n", label)), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
 }
 
-plot_circ_bar <- function(spatial_points, spatial_list = NULL, variable_name, colours = NULL, polar_rotation = NULL, stacked = FALSE) {
+plot_circ_bar <- function(spatial_points,
+                          spatial_list = NULL,
+                          #obstructions = NULL,
+                          variable_name,
+                          colours = NULL,
+                          polar_rotation = NULL,
+                          stacked = FALSE) {
   
   if(variable_name == "richness") {
     species <- sub("(\\w+\\s+\\w+).*", "\\1", spatial_points$species)
@@ -547,7 +564,7 @@ plot_circ_bar <- function(spatial_points, spatial_list = NULL, variable_name, co
   if(variable_name == "connectivity") {
     n_year_groups <- length(spatial_list)
     
-    data_w <- estimate_connectivity(spatial_list)
+    data_w <- estimate_connectivity(spatial_list)#, obstructions)
     
     score <- base::round(mean(as.matrix(data_w)), 2)
     
@@ -651,6 +668,93 @@ plot_circ_bar <- function(spatial_points, spatial_list = NULL, variable_name, co
   p
 }
 
+create_score_sheet <- function(spatial_points, spatial_list = NULL, path_filename) {
+  
+  ### Density ###
+  print("Preparing density plot...")
+  density_plot <- plot_classes(spatial_points = spatial_points,
+                               variable_name = "density",
+                               colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
+                               image_path = "data/images/leaves_icon.png")
+  
+  ### Texture ###
+  print("Preparing texture plot...")
+  texture_plot <- plot_classes(spatial_points = spatial_points,
+                               variable_name = "texture",
+                               colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
+                               image_path = "data/images/texture_icon.png")
+  
+  ### Size ###
+  print("Preparing sizes plot...")
+  size_plot <- plot_classes(spatial_points = spatial_points,
+                            variable_name = "size",
+                            colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
+                            image_path = "data/images/vegetation_icon.png")
+  
+  ### Endemism ###
+  print("Preparing endemism plot...")
+  endemism_plot <- plot_percent(spatial_points = spatial_points,
+                                variable_name = "endemism",
+                                colour = "#a072a6",
+                                label = "NATIVE")
+  
+  ### Type ###
+  print("Preparing type plot...")
+  type_plot <- plot_percent(spatial_points = spatial_points,
+                            variable_name = "type",
+                            colour = "#a19a65",
+                            label = "EVERGREEN")
+  
+  ### Species richness ###
+  print("Preparing species plot...")
+  richness_plot <- plot_circ_bar(spatial_points = spatial_points,
+                                 variable_name = "richness",
+                                 colours = "#858383",
+                                 polar_rotation = 0.25)
+  
+  ### Phenology ###
+  print("Preparing phenology plot...")
+  phenology_plot <- plot_circ_bar(spatial_points = spatial_points,
+                                  variable_name = "phenology",
+                                  colours = "#b0d4d6",
+                                  polar_rotation = 0.25)
+  
+  if(!is.null(spatial_list)) {
+    ### Coverage at 1m ###
+    print("Preparing coverage plot...")
+    coverage_plot <- plot_circ_bar(spatial_points = spatial_points,
+                                   spatial_list = spatial_list,
+                                   variable_name = "coverage",
+                                   colours = "#c9837d")
+    
+    ### Connectivity ###
+    print("Preparing connectivity plot...")
+    connectivity_plot <- plot_circ_bar(spatial_points = spatial_points,
+                                       spatial_list = spatial_list,
+                                       #obstructions = obstructions,
+                                       variable_name = "connectivity",
+                                       stacked = TRUE)
+  }
+  
+  plot_list <- list(density_plot,
+                    texture_plot,
+                    size_plot,
+                    endemism_plot,
+                    richness_plot,
+                    type_plot,
+                    phenology_plot)
+  
+  if(!is.null(spatial_list)) {
+    plot_list <- append(plot_list,
+                        list(connectivity_plot, coverage_plot))
+  }
+  
+  print("Creating score sheet.")
+  png(path_filename, height = 2400, width = 2400, pointsize = 4, res = 300)
+  grid.arrange(grobs = plot_list, ncol = 3)
+  dev.off()
+}
+
 check_spatial_input <- function(point_locations, polygon_locations = NULL) {
   # Verify the geometries
   if(!all(st_geometry_type(point_locations) == "POINT")) stop("All specified geometry are not points, check input geometry type")
@@ -662,6 +766,7 @@ check_spatial_input <- function(point_locations, polygon_locations = NULL) {
   # Verify the correct column names are used
   correct_names <- c("species",
                      "ref_height",
+                     "ini_height",
                      "endemism",
                      "phenology",
                      "type",

@@ -20,6 +20,7 @@ home_ex_years_1_30 <- process_structure(point_locations = home_ex_plant_points,
 
 save(home_ex_years_1_30, file = "output/home_ex_years_1_30")
 
+####################################################################
 
 # Load background spatial data for public park example
 park_ex_plant_points <- read_sf("data/gis/Plant_Data_Park.shp")
