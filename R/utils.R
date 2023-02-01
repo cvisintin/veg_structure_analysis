@@ -184,7 +184,7 @@ convert_combine <- function(point_locations, # Spatial geometry and attributes o
     grid <- st_make_grid(st_bbox(polygon_locations$geometry[i]), cellsize = cell_size, what = "centers")
     points <- st_intersection(grid, polygon_locations$geometry[i])
     n_points <- length(points)
-    points <- points[sample(seq_len(n_points), floor(n_points * polygon_locations$coverage[i] / 100))]
+    points <- points[sample(seq_len(n_points), pmax(1, floor(n_points * polygon_locations$coverage[i] / 100)))]
     st_sf(data, geometry = points)
   })
   
@@ -548,6 +548,8 @@ plot_circ_bar <- function(spatial_points,
       value = sapply(months, function(month) sum(grepl(month, spatial_points$phenology)))
     )
     
+    data$value <- zero_to_one(data$value)
+    
     img <- readPNG("data/images/flower_icon.png")
     g <- rasterGrob(img, interpolate = TRUE)
   }
@@ -582,13 +584,12 @@ plot_circ_bar <- function(spatial_points,
   if(!stacked) p <- ggplot(data, aes(x = as.factor(id), y = value))
   if(stacked) p <- ggplot(data, aes(x = id, y = value, fill = group))
   
-  # This add the bars with a color
   if(!stacked) p <- p + geom_bar(stat = "identity", fill = colours)
   if(stacked) p <- p + geom_bar(position = "stack", stat = "identity")
   if(stacked) p <- p + scale_fill_manual(values = rev(colours))
   
-  # Limits of the plot = very important. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
-  if(!stacked & variable_name != "coverage") p <- p + ylim(-max(data$value), max(data$value) * 1.5)
+  # Limits of the plot. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
+  if(!stacked & variable_name != "coverage") p <- p + ylim(-max(data$value) * 1.1, max(data$value) * 1.5)
   if(!stacked & variable_name == "coverage") p <- p + ylim(-max(data$value) * 1.1, max(data$value) * 1.15)
   if(stacked) p <- p + ylim(-max(data$value) * 1.1, max(data$value) * 1.3)
   
@@ -629,7 +630,7 @@ plot_circ_bar <- function(spatial_points,
                                    yy = -max(data$value),
                                    image = "data/images/flower_icon.png"),
                  mapping = aes(xx, yy, image = image),
-                 size = .25,
+                 size = .2,
                  inherit.aes = FALSE)
   }
   

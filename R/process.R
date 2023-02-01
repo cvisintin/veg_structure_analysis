@@ -34,3 +34,22 @@ park_ex_years_1_30 <- process_structure(point_locations = park_ex_plant_points,
                                         cellarea = 10)
 
 save(park_ex_years_1_30, file = "output/park_ex_years_1_30")
+
+####################################################################
+
+# Load background spatial data for residential project example
+park_av_plant_points <- read_sf("data/gis/Averley/Plant_Data_AV_Park.shp")
+park_av_planting_polygons <- read_sf("data/gis/Averley/Planting_Data_AV_Park.shp")
+park_av_site_boundary <- read_sf("data/gis/Averley/Site_Boundary_AV_Park.shp")
+
+# Convert planting polygons to points and combine with existing plant points
+park_av_plant_points <- convert_combine(point_locations = park_av_plant_points,
+                                        polygon_locations = park_av_planting_polygons)
+
+# Process vegetation structure data for specified years 
+park_av_years_1_30 <- process_structure(point_locations = park_av_plant_points,
+                                        boundary = park_av_site_boundary,
+                                        years = 1:30,
+                                        cellarea = 10)
+
+save(park_av_years_1_30, file = "output/park_av_years_1_30")
