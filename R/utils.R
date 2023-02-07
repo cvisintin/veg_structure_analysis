@@ -411,15 +411,23 @@ create_images <- function(spatial_list, path, filename) {
       spatial_data <- rotate_data(spatial_data)
       
       # Set annotation position
-      x <- st_bbox(spatial_data)[3] * 0.999995
+      x <- st_bbox(spatial_data)[3] #* 0.999995
       y <- st_bbox(spatial_data)[2] * 1.000001 
       
       # Create plot of proportional overlap grid at currently specified height
       plot_list[[i]] <- ggplot() +
         geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray40', size = 0.05, show.legend = FALSE) +
-        annotate("text", label = paste0(cut_heights[i], " m"), x = x , y = y, hjust = 0, color = 'gray40', size = 2) +
+        annotate("text",
+                 label = paste0(cut_heights[i], " m"),
+                 x = x ,
+                 y = y,
+                 hjust = "inward",
+                 color = 'gray20',
+                 size = 1,
+                 fontface = "bold") +
         scale_fill_viridis_c(option = 'E', na.value = "transparent") +
         theme_void()
+      
     } 
     
     # Write out PNG of overlap grids for all heights
@@ -468,7 +476,7 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
   # Make the plot
   ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = category)) +
     geom_rect() +
-    geom_text(x = 3.5, aes(y = labelPosition[idx], label = category[idx]), size = 4) +
+    geom_text(x = 3.5, aes(y = labelPosition[idx], label = category[idx]), size = 2.5) +
     scale_fill_manual(values = colour_palette) +
     coord_polar(theta = "y") +
     xlim(c(0.8, 4)) +
@@ -754,6 +762,98 @@ create_score_sheet <- function(spatial_points, spatial_list = NULL, path_filenam
   png(path_filename, height = 2400, width = 2400, pointsize = 4, res = 300)
   grid.arrange(grobs = plot_list, ncol = 3)
   dev.off()
+}
+
+create_interactive_score_sheet <- function(spatial_points, spatial_list = NULL, path_directory) {
+  
+  
+  
+  ### Density ###
+  print("Preparing density plot...")
+  png(paste0(path_directory, "density.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  plot_classes(spatial_points = spatial_points,
+               variable_name = "density",
+               colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
+               image_path = "data/images/leaves_icon.png")
+  dev.off()
+  
+  ### Texture ###
+  print("Preparing texture plot...")
+  png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  plot_classes(spatial_points = spatial_points,
+               variable_name = "texture",
+               colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
+               image_path = "data/images/texture_icon.png")
+  dev.off()
+  
+  ### Size ###
+  print("Preparing sizes plot...")
+  png(paste0(path_directory, "size.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  plot_classes(spatial_points = spatial_points,
+               variable_name = "size",
+               colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
+               image_path = "data/images/vegetation_icon.png")
+  dev.off()
+  
+  ### Endemism ###
+  print("Preparing endemism plot...")
+  png(paste0(path_directory, "endemism.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  plot_percent(spatial_points = spatial_points,
+               variable_name = "endemism",
+               colour = "#a072a6",
+               label = "NATIVE")
+  dev.off()
+  
+  ### Type ###
+  print("Preparing type plot...")
+  png(paste0(path_directory, "type.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  plot_percent(spatial_points = spatial_points,
+               variable_name = "type",
+               colour = "#a19a65",
+               label = "EVERGREEN")
+  dev.off()
+  
+  ### Species richness ###
+  print("Preparing species plot...")
+  png(paste0(path_directory, "richness.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  plot_circ_bar(spatial_points = spatial_points,
+                variable_name = "richness",
+                colours = "#858383",
+                polar_rotation = 0.25)
+  dev.off()
+  
+  ### Phenology ###
+  print("Preparing phenology plot...")
+  png(paste0(path_directory, "phenology.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  plot_circ_bar(spatial_points = spatial_points,
+                variable_name = "phenology",
+                colours = "#b0d4d6",
+                polar_rotation = 0.25)
+  dev.off()
+  
+  if(!is.null(spatial_list)) {
+    ### Coverage at 1m ###
+    print("Preparing coverage plot...")
+    png(paste0(path_directory, "coverage.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    plot_circ_bar(spatial_points = spatial_points,
+                  spatial_list = spatial_list,
+                  variable_name = "coverage",
+                  colours = "#c9837d")
+    dev.off()
+    
+    ### Connectivity ###
+    print("Preparing connectivity plot...")
+    png(paste0(path_directory, "connectivity.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    plot_circ_bar(spatial_points = spatial_points,
+                  spatial_list = spatial_list,
+                  #obstructions = obstructions,
+                  variable_name = "connectivity",
+                  stacked = TRUE)
+    dev.off()
+  }
+  
+  print("Creating score sheet.")
+  
 }
 
 check_spatial_input <- function(point_locations, polygon_locations = NULL) {
