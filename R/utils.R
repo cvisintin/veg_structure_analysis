@@ -771,84 +771,84 @@ create_interactive_score_sheet <- function(spatial_points, spatial_list = NULL, 
   ### Density ###
   print("Preparing density plot...")
   png(paste0(path_directory, "density.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  plot_classes(spatial_points = spatial_points,
+  print(plot_classes(spatial_points = spatial_points,
                variable_name = "density",
                colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
-               image_path = "data/images/leaves_icon.png")
+               image_path = "data/images/leaves_icon.png"))
   dev.off()
   
   ### Texture ###
   print("Preparing texture plot...")
   png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  plot_classes(spatial_points = spatial_points,
+  print(plot_classes(spatial_points = spatial_points,
                variable_name = "texture",
                colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
-               image_path = "data/images/texture_icon.png")
+               image_path = "data/images/texture_icon.png"))
   dev.off()
   
   ### Size ###
   print("Preparing sizes plot...")
   png(paste0(path_directory, "size.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  plot_classes(spatial_points = spatial_points,
+  print(plot_classes(spatial_points = spatial_points,
                variable_name = "size",
                colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
-               image_path = "data/images/vegetation_icon.png")
+               image_path = "data/images/vegetation_icon.png"))
   dev.off()
   
   ### Endemism ###
   print("Preparing endemism plot...")
   png(paste0(path_directory, "endemism.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  plot_percent(spatial_points = spatial_points,
+  print(plot_percent(spatial_points = spatial_points,
                variable_name = "endemism",
                colour = "#a072a6",
-               label = "NATIVE")
+               label = "NATIVE"))
   dev.off()
   
   ### Type ###
   print("Preparing type plot...")
   png(paste0(path_directory, "type.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  plot_percent(spatial_points = spatial_points,
+  print(plot_percent(spatial_points = spatial_points,
                variable_name = "type",
                colour = "#a19a65",
-               label = "EVERGREEN")
+               label = "EVERGREEN"))
   dev.off()
   
   ### Species richness ###
   print("Preparing species plot...")
   png(paste0(path_directory, "richness.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  plot_circ_bar(spatial_points = spatial_points,
+  print(plot_circ_bar(spatial_points = spatial_points,
                 variable_name = "richness",
                 colours = "#858383",
-                polar_rotation = 0.25)
+                polar_rotation = 0.25))
   dev.off()
   
   ### Phenology ###
   print("Preparing phenology plot...")
   png(paste0(path_directory, "phenology.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  plot_circ_bar(spatial_points = spatial_points,
+  print(plot_circ_bar(spatial_points = spatial_points,
                 variable_name = "phenology",
                 colours = "#b0d4d6",
-                polar_rotation = 0.25)
+                polar_rotation = 0.25))
   dev.off()
   
   if(!is.null(spatial_list)) {
     ### Coverage at 1m ###
     print("Preparing coverage plot...")
     png(paste0(path_directory, "coverage.png"), height = 400, width = 400, pointsize = 4, res = 150)
-    plot_circ_bar(spatial_points = spatial_points,
+    print(plot_circ_bar(spatial_points = spatial_points,
                   spatial_list = spatial_list,
                   variable_name = "coverage",
-                  colours = "#c9837d")
+                  colours = "#c9837d"))
     dev.off()
     
     ### Connectivity ###
     print("Preparing connectivity plot...")
     png(paste0(path_directory, "connectivity.png"), height = 400, width = 400, pointsize = 4, res = 150)
-    plot_circ_bar(spatial_points = spatial_points,
+    print(plot_circ_bar(spatial_points = spatial_points,
                   spatial_list = spatial_list,
                   #obstructions = obstructions,
                   variable_name = "connectivity",
-                  stacked = TRUE)
+                  stacked = TRUE))
     dev.off()
   }
   
