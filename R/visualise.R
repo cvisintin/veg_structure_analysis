@@ -66,3 +66,8 @@ system('convert -delay 50 -dispose previous -loop 0 figs/park_av_veg* figs/anima
 create_score_sheet(spatial_points = park_av_plant_points,
                    spatial_list = park_av_years_1_30,
                    path_filename = "figs/park_av_results.png")
+
+# Create score sheet
+create_interactive_score_sheet(spatial_points = park_av_plant_points,
+                               spatial_list = park_av_years_1_30,
+                               path_directory = "figs/web/averley/")

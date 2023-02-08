@@ -853,6 +853,12 @@ create_interactive_score_sheet <- function(spatial_points, spatial_list = NULL, 
   }
   
   print("Creating score sheet.")
+  file.copy("data/main.css", paste0(path_directory, "main.css"), overwrite = TRUE)
+  file.copy("data/index.html", paste0(path_directory, "index.html"), overwrite = TRUE)
+  
+  if(!is.null(spatial_list)) {
+    file.copy("data/index_full.html", paste0(path_directory, "index.html"), overwrite = TRUE)
+  }
   
 }
 

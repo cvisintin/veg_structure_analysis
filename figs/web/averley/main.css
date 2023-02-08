@@ -19,9 +19,14 @@
 	left: 0;
 	width: 100%;
 	height: 100%;
-	background: rgba(255, 255, 255, 0.85);
+	background: rgba(255, 255, 255, 0.9);
 	color: #000000;
+	box-sizing: border-box;
+  padding-left: 30px;
+  padding-right: 30px;
 	font-family: 'Quicksand', sans-serif;
+	text-align: justify;
+  text-justify: inter-word;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
