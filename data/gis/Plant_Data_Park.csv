@@ -1,5 +1,5 @@
-species,endemism,phenology,type,form,density,texture,max_height,max_width,year_max,spacing,coverage
-Allocasuarina littoralis,native,sep_oct_nov,evergreen,round,semi-open,fine,10,4,20,,
-Eucalyptus microcarpa,native,feb_mar_apr_may_jun,evergreen,round,semi-open,medium,20,12,30,,
-Eucalyptus obliqua,native,jan_feb_mar_apr_may_jun_jul_aug_sep_oct_nov_dec ,evergreen,round,semi-open,medium,30,25,30,,
-Eucalyptus signata,native,jul_aug_sep,evergreen,pyramidal,semi-open,medium,25,15,30,,
+species,endemism,phenology,form,density,texture,max_height,max_width,year_max,spacing,coverage
+Allocasuarina littoralis,native,sep_oct_nov,round,semi-open,fine,10,4,20,,
+Eucalyptus microcarpa,native,feb_mar_apr_may_jun,round,semi-open,medium,20,12,30,,
+Eucalyptus obliqua,native,jan_feb_mar_apr_may_jun_jul_aug_sep_oct_nov_dec ,round,semi-open,medium,30,25,30,,
+Eucalyptus signata,native,jul_aug_sep,pyramidal,semi-open,medium,25,15,30,,
