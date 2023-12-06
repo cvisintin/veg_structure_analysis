@@ -488,11 +488,13 @@ create_images <- function(spatial_list, path, filename) {
       
       # Set annotation position
       x <- st_bbox(spatial_data)[3] #* 0.999995
-      y <- st_bbox(spatial_data)[2] * 1.000001 
+      y <- st_bbox(spatial_data)[2] * 1.000001
+      x2 <- st_bbox(spatial_data)[1]
+      y2 <- st_bbox(spatial_data)[4]
       
       # Create plot of proportional overlap grid at currently specified height
       plot_list[[i]] <- ggplot() +
-        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray40', size = 0.05, show.legend = FALSE) +
+        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray20', lwd = 0.01, show.legend = FALSE) +
         annotate("text",
                  label = paste0(cut_heights[i], " m"),
                  x = x ,
@@ -501,6 +503,14 @@ create_images <- function(spatial_list, path, filename) {
                  color = 'gray20',
                  size = 1,
                  fontface = "bold") +
+        {if(i == length(spatial_year)) annotate("text",
+                 label = paste0("Year ", j),
+                 x = x2 ,
+                 y = y2,
+                 hjust = "inward",
+                 color = 'gray20',
+                 size = 1,
+                 fontface = "bold")} +
         scale_fill_viridis_c(option = 'E', na.value = "transparent") +
         theme_void()
       
@@ -594,7 +604,7 @@ plot_percent <- function(spatial_points, variable_name, colour, label) {
   
   # Make the plot
   ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 5, xmin = 1, fill = factor(category))) +
-    geom_rect(color = "white", size = 1) +
+    geom_rect(color = "white", linewidth = 1) +
     geom_point(aes(x = 0, y = -max(values) * 0.5), color = "white", size = 50) +
     #geom_text(x = 3.5, aes(y = labelPosition, label = toupper(category)), size = 4) +
     scale_fill_manual(values = pr_palette) +
@@ -647,14 +657,16 @@ plot_circ_bar <- function(spatial_points,
     )
   }
   
-  if(variable_name == "connectivity") {
+  if(variable_name == "configuration" | variable_name == "connectivity" ) {
     n_year_groups <- length(spatial_list)
     
     data_w <- estimate_connectivity(spatial_list)#, obstructions)
     
     max_value <- ncol(data_w)
     
-    score <- base::round(mean(as.matrix(data_w)), 2)
+    score <- ifelse(variable_name == "connectivity",
+                    base::round(mean(as.matrix(data_w[[1]])), 2),
+                    base::round(mean(as.matrix(data_w[[2]])), 2))
     
     data_w$remainder <- apply(data_w, 1, function(x) ncol(data_w) - sum(x))
     
@@ -754,7 +766,7 @@ plot_circ_bar <- function(spatial_points,
   p
 }
 
-create_score_sheet <- function(spatial_points, spatial_list = NULL, path_filename) {
+create_static_score_sheet <- function(spatial_points, spatial_list = NULL, path_filename) {
   
   ### Density ###
   print("Preparing density plot...")
@@ -820,19 +832,27 @@ create_score_sheet <- function(spatial_points, spatial_list = NULL, path_filenam
                                        #obstructions = obstructions,
                                        variable_name = "connectivity",
                                        stacked = TRUE)
+    
+    ### Configuration ###
+    print("Preparing configuration plot...")
+    configuration_plot <- plot_circ_bar(spatial_points = spatial_points,
+                                       spatial_list = spatial_list,
+                                       #obstructions = obstructions,
+                                       variable_name = "configuration",
+                                       stacked = TRUE)
   }
   
   plot_list <- list(density_plot,
                     texture_plot,
                     size_plot,
-                    endemism_plot,
                     richness_plot,
-                    type_plot,
-                    phenology_plot)
+                    endemism_plot,
+                    phenology_plot
+                    )
   
   if(!is.null(spatial_list)) {
     plot_list <- append(plot_list,
-                        list(connectivity_plot, coverage_plot))
+                        list(configuration_plot, coverage_plot, connectivity_plot))
   }
   
   print("Creating score sheet.")

@@ -17,10 +17,10 @@ load(file = "output/home_ex_years_1_30")
 create_images(home_ex_years_1_30, path = "figs/", filename = "home_ex_veg_structure")
 
 # Animate spatial outputs
-system('convert -delay 50 -dispose previous -loop 0 figs/home_ex* figs/animations/home_ex_veg_growth.gif')
+system('convert -delay 50 -dispose previous -loop 0 figs/home_ex_veg* figs/animations/home_ex_veg_growth.gif')
 
 # Create score sheet
-create_score_sheet(spatial_points = home_ex_plant_points,
+create_static_score_sheet(spatial_points = home_ex_plant_points,
                    spatial_list = home_ex_years_1_30,
                    path_filename = "figs/home_ex_results.png")
 
@@ -39,7 +39,7 @@ create_images(park_ex_years_1_30, path = "figs/", filename = "park_ex_veg_struct
 system('convert -delay 50 -dispose previous -loop 0 figs/park_ex_veg* figs/animations/park_ex_veg_growth.gif')
 
 # Create score sheet
-create_score_sheet(spatial_points = park_ex_plant_points,
+create_static_score_sheet(spatial_points = park_ex_plant_points,
                    spatial_list = park_ex_years_1_30,
                    path_filename = "figs/park_ex_results.png")
 
@@ -63,7 +63,7 @@ create_images(park_av_years_1_30, path = "figs/", filename = "park_av_veg_struct
 system('convert -delay 50 -dispose previous -loop 0 figs/park_av_veg* figs/animations/park_av_veg_growth.gif')
 
 # Create score sheet
-create_score_sheet(spatial_points = park_av_plant_points,
+create_static_score_sheet(spatial_points = park_av_plant_points,
                    spatial_list = park_av_years_1_30,
                    path_filename = "figs/park_av_results.png")
 
