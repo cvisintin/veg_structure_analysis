@@ -27,13 +27,7 @@ create_grid <- function(boundary, # Boundary to create grid cells over
     horizontal_spacing <- 3 * outer_radius
     vertical_spacing <- inner_radius
   }
-  
-  # # Determine grid spacing
-  # grid_spacing <- horizontal_spacing
-  # if (hex_gridshape) {
-  #   grid_spacing <- 2 * inner_radius
-  # }
-  
+
   # Increase boundary to ensure adequate coverage
   boundary_buff <- st_buffer(boundary, 2 * horizontal_spacing)
   
@@ -53,7 +47,7 @@ create_grid <- function(boundary, # Boundary to create grid cells over
   # Combine coordinates into a matrix of x and y values
   xy_coords <- cbind(x_coords, y_coords)
   
-  # If hexagonal:
+  # If hexagonal, provide offsets
   if (hex_gridshape) {
     
     # Identify indices of x coordinates to offset
@@ -127,7 +121,7 @@ rounded <- function(adj_cut_height = 0, plant_height = 0) {
 }
 
 mounding <- function(adj_cut_height = 0, plant_height = 0) {
-  1 - (adj_cut_height / plant_height)^2
+  sqrt(plant_height^2 - adj_cut_height^2)
 }
 
 vase <- function(adj_cut_height = 0, plant_height = 0) {
