@@ -2,16 +2,19 @@ library(sf)
 source('R/utils.R')
 
 # Load background spatial data
-home_ex_plant_points <- read_sf("data/gis/Plant_Data_Home.shp")
-home_ex_planting_polygons <- read_sf("data/gis/Planting_Data_Home.shp")
-#home_ex_buildings <- read_sf("data/gis/Building_Mass_Home.shp")
+home_ex_plant_points <- read_sf("data/gis/sample_landscape/Plant_Data_Home.shp")
+home_ex_planting_polygons <- read_sf("data/gis/sample_landscape/Planting_Data_Home.shp")
+#home_ex_buildings <- read_sf("data/gis/sample_landscape/Building_Mass_Home.shp")
 
 # Convert planting polygons to points and combine with existing plant points
 home_ex_plant_points <- convert_combine(point_locations = home_ex_plant_points,
                                         polygon_locations = home_ex_planting_polygons)
 
 # Load grids file
-load(file = "output/home_ex_years_1_30")
+load(file = "output/sample_landscape/home_ex_years_1_30")
+
+# Create export for visualisation
+export_image_set(home_ex_years_1_30, path = "output/sample_landscape/", filename = "home_ex_veg_structure")
 
 # Create spatial outputs
 create_images(home_ex_years_1_30, path = "figs/", filename = "home_ex_veg_structure")
@@ -23,6 +26,10 @@ system('convert -delay 50 -dispose previous -loop 0 figs/home_ex_veg* figs/anima
 create_static_score_sheet(spatial_points = home_ex_plant_points,
                    spatial_list = home_ex_years_1_30,
                    path_filename = "figs/home_ex_results.png")
+
+create_interactive_score_sheet(spatial_points = home_ex_plant_points,
+                          spatial_list = home_ex_years_1_30,
+                          path_directory = "figs/web/sample_landscape/")
 
 ####################################################################
 

@@ -1,5 +1,6 @@
 library(sf)
 library(dplyr)
+library(geos)
 library(ggplot2)
 library(ggimage)
 library(grid)
@@ -27,7 +28,7 @@ create_grid <- function(boundary, # Boundary to create grid cells over
     horizontal_spacing <- 3 * outer_radius
     vertical_spacing <- inner_radius
   }
-
+  
   # Increase boundary to ensure adequate coverage
   boundary_buff <- st_buffer(boundary, 2 * horizontal_spacing)
   
@@ -165,6 +166,7 @@ extract_1m_coverage <- function(spatial_list) {
   })
 }
 
+# Convert polygons to points based on spacing and proportion coverage of plants
 convert_combine <- function(point_locations, # Spatial geometry and attributes of plants
                             polygon_locations # Spatial geometry and attributes of planted areas
 ) {
@@ -187,6 +189,7 @@ convert_combine <- function(point_locations, # Spatial geometry and attributes o
   rbind(point_locations, new_plant_points)
 }
 
+# Build the vegetation structure over time and horizontally cut at specified heights
 process_structure <- function(point_locations, # Spatial geometry and attributes of plants
                               obstructions = NULL, # Geometry that may obstruct plant growth in horizontal plane
                               boundary, # Geometry that defines the boundary of the site
@@ -203,12 +206,19 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
   # Create grid from boundary based on specified grid shape and approximate cell size
   master_grid <- create_grid(boundary = boundary, hex_gridshape = hex_gridshape, cellarea = cellarea)
   
+  # Check for obstruction data
+  obstruct <- !is.null(obstructions)
+  
   # # Get grid spacing
   # grid_spacing <- attr(master_grid, 'gridspacing')
   
   # Determine cell spacing distance
   cell_dist <- sqrt(2 * cellarea / (3 * sqrt(3))) * sqrt(3)
   if(hex_gridshape == FALSE) cell_dist <- sqrt(cellarea)
+  
+  # Convert geometry to geos structure for faster processing
+  point_locations_geom <- as_geos_geometry(point_locations)
+  if (obstruct) obstructions_geom <- as_geos_geometry(obstructions)
   
   out <- lapply(years, function(year) {  
     
@@ -229,6 +239,9 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
       # Copy master grid
       grid <- master_grid
       
+      # Convert geometry to geos structure for faster processing
+      grid_geom <- as_geos_geometry(grid)
+      
       # Add new attribute to grid
       grid$prop_ol <- as.numeric(NA)
       
@@ -246,33 +259,34 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
         })
         
         # Create a buffered region around all plants based on geometry forms for the given year
-        planted_area <- st_union(st_buffer(point_locations[ids, ], (plant_widths[ids] / 2) * mults))
+        planted_area <- geos_unary_union(geos_make_collection(geos_buffer(geom = point_locations_geom[ids], distance = (plant_widths[ids] / 2) * mults)))
         
-        # Check for obstruction data
-        obstruct <- !is.null(obstructions)
-        
-        # Determine which obstructions are above cut height
-        if (obstruct) obstruction_idx <- which(obstructions$height > cut_height)
-        
-        # Remove areas with obstructions (e.g. buildings)
-        if (obstruct) planted_area <- st_difference(planted_area, obstructions$geometry[obstruction_idx])
-        
+        if (obstruct) {
+          # Determine which obstructions are above cut height
+          obstruction_idx <- obstructions$height > cut_height
+          
+          if (!is.null(obstruction_idx)) {
+            # Remove areas with obstructions (e.g. buildings)
+            planted_area <- geos_difference(planted_area, geos_unary_union(geos_make_collection(obstructions_geom[obstruction_idx])))
+          }
+        }
+
         # If path is provided, write out vegetation footprints for given year and selected heights
         # using centimeters to designate height (padded with zeros)
         if(!is.null(veg_layers_path)) {
-          st_write(planted_area, paste0(veg_layers_path,
-                                        "year_",
-                                        sprintf("%02d", year),
-                                        "_height_",
-                                        sprintf("%04d", ceiling(cut_height * 100)),
-                                        "_veg.shp"), append = FALSE)
+          st_write(st_as_sfc(planted_area), paste0(veg_layers_path,
+                                                  "year_",
+                                                  sprintf("%02d", year),
+                                                  "_height_",
+                                                  sprintf("%04d", ceiling(cut_height * 100)),
+                                                  "_veg.shp"), append = FALSE)
         }
         
         # Identify the grid cells that have overlap with vegetation
-        overlap_idx <- st_intersects(grid$geometry, st_union(planted_area), sparse = FALSE)
+        overlap_idx <- geos_intersects_any(grid_geom, geos_strtree(planted_area))
         
         # Determine the area of overlap in each qualified grid cell
-        areas <- st_area(st_intersection(grid$geometry[overlap_idx], st_union(planted_area)))
+        areas <- geos_area(geos_intersection(grid_geom[overlap_idx], planted_area))
         
         # Record proportions of overlap to eligible grids
         grid$prop_ol[overlap_idx] <- areas / st_area(grid$geometry[1])
@@ -282,14 +296,14 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
       # If path is provided, write out grids for given year and selected heights using centimeters
       # to designate height (padded with zeros)
       if(!is.null(overlap_grids_path)) {
-        st_write(grid, paste0(overlap_grids_path,
-                              "year_",
-                              sprintf("%02d", year),
-                              "_height_",
-                              sprintf("%04d", ceiling(cut_height * 100)),
-                              "_grd_",
-                              ifelse(hex_gridshape, "hex", "rect") ,
-                              ".shp"), append = FALSE)
+        st_write(st_as_sfc(grid), paste0(overlap_grids_path,
+                                        "year_",
+                                        sprintf("%02d", year),
+                                        "_height_",
+                                        sprintf("%04d", ceiling(cut_height * 100)),
+                                        "_grd_",
+                                        ifelse(hex_gridshape, "hex", "rect") ,
+                                        ".shp"), append = FALSE)
       }
       
       grid
@@ -318,8 +332,9 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
   out
 }
 
+# Estimate how well the site vegetation is connected using a threshold value
+# for proportion of vegetation coverage in each cell
 estimate_connectivity <- function(spatial_list,
-                                  #obstructions,
                                   threshold = 0.3) {
   # Extract unique years from file list
   years <- names(spatial_list)
@@ -342,10 +357,7 @@ estimate_connectivity <- function(spatial_list,
   points <- st_sf(data.frame("id" = 1:length(points)), geometry = points)
   
   idx <- master_grid$id
-  
-  # Determine which points to exclude at each cut height
-  #obstruction_idx <- which(obstructions$height >= cut_height)
-  
+
   # Create master neighborhood list
   nb_list <- lapply(idx, function(p) {
     ids <- points$id[st_intersects(points, buffers[p], sparse = FALSE, prepared = FALSE)]
@@ -488,7 +500,7 @@ create_images <- function(spatial_list, path, filename) {
       
       # Create plot of proportional overlap grid at currently specified height
       plot_list[[i]] <- ggplot() +
-        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray20', lwd = 0.01, show.legend = FALSE) +
+        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray40', lwd = 0.03, show.legend = FALSE) +
         annotate("text",
                  label = paste0(cut_heights[i], " m"),
                  x = x ,
@@ -498,13 +510,13 @@ create_images <- function(spatial_list, path, filename) {
                  size = 1,
                  fontface = "bold") +
         {if(i == length(spatial_year)) annotate("text",
-                 label = paste0("Year ", j),
-                 x = x2 ,
-                 y = y2,
-                 hjust = "inward",
-                 color = 'gray20',
-                 size = 1,
-                 fontface = "bold")} +
+                                                label = paste0("Year ", j),
+                                                x = x2 ,
+                                                y = y2,
+                                                hjust = "inward",
+                                                color = 'gray20',
+                                                size = 1,
+                                                fontface = "bold")} +
         scale_fill_viridis_c(option = 'E', na.value = "transparent") +
         theme_void()
       
@@ -517,6 +529,68 @@ create_images <- function(spatial_list, path, filename) {
     
     NULL # Because function is not meant to return anything
   })
+}
+
+export_image_set <- function(spatial_list, path, filename) {
+  
+  # Extract unique years from file list
+  years <- names(spatial_list)
+  n_year_groups <- length(years)
+  
+  # Extract unique heights from file list and convert to numeric and meter units
+  cut_heights <- names(spatial_list[[1]])
+  cut_heights <- as.numeric(substr(cut_heights, (nchar(cut_heights) + 1) - 4, nchar(cut_heights))) / 100
+  
+  plot_set <- sapply(seq_len(n_year_groups), function(j) {
+    print(paste0("Processing year ", j))
+    
+    spatial_year <- spatial_list[[j]]
+    
+    plot_list <- list()
+    
+    for (i in 1:length(spatial_year)) {
+      
+      # Load processed spatial data
+      spatial_data <- spatial_year[[i]]
+      
+      # Rotate spatial data
+      spatial_data <- rotate_data(spatial_data)
+      
+      # Set annotation position
+      x <- st_bbox(spatial_data)[3] #* 0.999995
+      y <- st_bbox(spatial_data)[2] * 1.000001
+      x2 <- st_bbox(spatial_data)[1]
+      y2 <- st_bbox(spatial_data)[4]
+      
+      # Create plot of proportional overlap grid at currently specified height
+      plot_list[[i]] <- ggplot() +
+        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray20', lwd = 0.03, show.legend = FALSE) +
+        annotate("text",
+                 label = paste0(cut_heights[i], " m"),
+                 x = x ,
+                 y = y,
+                 hjust = "inward",
+                 color = 'gray20',
+                 size = 5,
+                 fontface = "bold") +
+        {if(i == length(spatial_year)) annotate("text",
+                                                label = paste0("Year ", j),
+                                                x = x2 ,
+                                                y = y2,
+                                                hjust = "inward",
+                                                color = 'gray20',
+                                                size = 5,
+                                                fontface = "bold")} +
+        scale_fill_viridis_c(option = 'E', na.value = "transparent") +
+        theme_void()
+      
+    } 
+    
+    arrangeGrob(grobs = rev(plot_list), ncol = 1)
+  })
+  
+  save(plot_set, file = paste0(path, filename))
+  
 }
 
 plot_classes <- function(spatial_points, variable_name, colour_palette, image_path) {
@@ -830,10 +904,10 @@ create_static_score_sheet <- function(spatial_points, spatial_list = NULL, path_
     ### Configuration ###
     print("Preparing configuration plot...")
     configuration_plot <- plot_circ_bar(spatial_points = spatial_points,
-                                       spatial_list = spatial_list,
-                                       #obstructions = obstructions,
-                                       variable_name = "configuration",
-                                       stacked = TRUE)
+                                        spatial_list = spatial_list,
+                                        #obstructions = obstructions,
+                                        variable_name = "configuration",
+                                        stacked = TRUE)
   }
   
   plot_list <- list(density_plot,
@@ -842,7 +916,7 @@ create_static_score_sheet <- function(spatial_points, spatial_list = NULL, path_
                     richness_plot,
                     endemism_plot,
                     phenology_plot
-                    )
+  )
   
   if(!is.null(spatial_list)) {
     plot_list <- append(plot_list,
