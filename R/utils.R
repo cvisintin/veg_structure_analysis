@@ -170,6 +170,8 @@ extract_1m_coverage <- function(spatial_list) {
 convert_combine <- function(point_locations, # Spatial geometry and attributes of plants
                             polygon_locations # Spatial geometry and attributes of planted areas
 ) {
+  polygon_locations <- st_buffer(polygon_locations, 0)
+  
   check_spatial_input(point_locations = point_locations, polygon_locations = polygon_locations)
   
   n_polys <- nrow(polygon_locations)
@@ -270,16 +272,16 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
             planted_area <- geos_difference(planted_area, geos_unary_union(geos_make_collection(obstructions_geom[obstruction_idx])))
           }
         }
-
+        
         # If path is provided, write out vegetation footprints for given year and selected heights
         # using centimeters to designate height (padded with zeros)
         if(!is.null(veg_layers_path)) {
           st_write(st_as_sfc(planted_area), paste0(veg_layers_path,
-                                                  "year_",
-                                                  sprintf("%02d", year),
-                                                  "_height_",
-                                                  sprintf("%04d", ceiling(cut_height * 100)),
-                                                  "_veg.shp"), append = FALSE)
+                                                   "year_",
+                                                   sprintf("%02d", year),
+                                                   "_height_",
+                                                   sprintf("%04d", ceiling(cut_height * 100)),
+                                                   "_veg.shp"), append = FALSE)
         }
         
         # Identify the grid cells that have overlap with vegetation
@@ -297,13 +299,13 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
       # to designate height (padded with zeros)
       if(!is.null(overlap_grids_path)) {
         st_write(st_as_sfc(grid), paste0(overlap_grids_path,
-                                        "year_",
-                                        sprintf("%02d", year),
-                                        "_height_",
-                                        sprintf("%04d", ceiling(cut_height * 100)),
-                                        "_grd_",
-                                        ifelse(hex_gridshape, "hex", "rect") ,
-                                        ".shp"), append = FALSE)
+                                         "year_",
+                                         sprintf("%02d", year),
+                                         "_height_",
+                                         sprintf("%04d", ceiling(cut_height * 100)),
+                                         "_grd_",
+                                         ifelse(hex_gridshape, "hex", "rect") ,
+                                         ".shp"), append = FALSE)
       }
       
       grid
@@ -357,7 +359,7 @@ estimate_connectivity <- function(spatial_list,
   points <- st_sf(data.frame("id" = 1:length(points)), geometry = points)
   
   idx <- master_grid$id
-
+  
   # Create master neighborhood list
   nb_list <- lapply(idx, function(p) {
     ids <- points$id[st_intersects(points, buffers[p], sparse = FALSE, prepared = FALSE)]
