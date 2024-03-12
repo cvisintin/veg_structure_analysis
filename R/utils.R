@@ -8,11 +8,236 @@ library(gridExtra)
 library(png)
 library(tidyr)
 library(viridis)
+library(spatstat)
 
-zero_to_one <- function(x) {
-  (x - min(x)) / (max(x) - min(x))
+# Determine spatial patterning and assess whether there is uniform distribution or not
+analyse_spatial_patterning <- function(spatial_points, boundary) {
+  species <- unique(spatial_points$species)
+  n_species <- length(species)
+  scores <- rep(NA, n_species)
+  for (i in seq_len(n_species)) {
+    idx <- spatial_points$species == species[i]
+    ppp <- ppp(x = st_coordinates(spatial_points)[idx, 1],
+               y = st_coordinates(spatial_points)[idx, 2],
+               window = as.owin(st_bbox(boundary)))
+    scores[i] <- ifelse(ppp$n > 2,
+                        {K <- envelope(ppp, silent = TRUE, verbose = FALSE)
+                        auc_theo <- sum(diff(seq_len(length(K$theo))) * (head(K$theo, -1) + tail(K$theo, -1))) / 2
+                        auc_obs <- sum(diff(seq_len(length(K$obs))) * (head(K$obs, -1) + tail(K$obs, -1))) / 2
+                        auc_prop <- auc_theo / auc_obs
+                        if(auc_prop <= 1) auc_score <- auc_prop
+                        if(auc_prop > 1) auc_score <- 1 / auc_prop
+                        auc_score
+                        }, 0)
+  }
+  scores_idx <- which(scores > 0)
+  final_score <- mean(scores[scores_idx])
+  final_score
 }
 
+# Verify that the point and polygon spatial objects have the same properties and attributes
+check_spatial_input <- function(point_locations, polygon_locations = NULL) {
+  # Verify the geometries
+  if(!all(st_geometry_type(point_locations) == "POINT")) stop("All specified geometry are not points, check input geometry type")
+  
+  if(!is.null(polygon_locations)) {
+    if(!all(st_geometry_type(polygon_locations) == "POLYGON")) stop("All specified geometry are not polygons, check input geometry type")
+  }
+  
+  # Verify the correct column names are used
+  correct_names <- c("species",
+                     "ref_height",
+                     "ini_height",
+                     "endemism",
+                     "phenology",
+                     # "type",
+                     "form",
+                     "density",
+                     "texture",
+                     "max_height",
+                     "max_width",
+                     "year_max",
+                     "spacing",
+                     "coverage")
+  
+  point_data <-as.data.frame(st_drop_geometry(point_locations))
+  if(!identical(names(point_data), correct_names)) stop("Check column names in point data; they are not as required")
+  
+  if(!is.null(polygon_locations)) {
+    polygon_data <-as.data.frame(st_drop_geometry(polygon_locations))
+    if(!identical(names(point_data), correct_names)) stop("Check column names in polygon data; they are not as required")  }
+  
+  NULL 
+}
+
+# Create axonometric images of grids showing proportional coverage of vegetation
+# at specified heights and for all specified timesteps 
+create_images <- function(spatial_list, path, filename) {
+  
+  # Extract unique years from file list
+  years <- names(spatial_list)
+  n_year_groups <- length(years)
+  
+  # Extract unique heights from file list and convert to numeric and meter units
+  cut_heights <- names(spatial_list[[1]])
+  cut_heights <- as.numeric(substr(cut_heights, (nchar(cut_heights) + 1) - 4, nchar(cut_heights))) / 100
+  
+  sapply(seq_len(n_year_groups), function(j) {
+    
+    spatial_year <- spatial_list[[j]]
+    
+    plot_list <- list()
+    
+    for (i in 1:length(spatial_year)) {
+      
+      # Load processed spatial data
+      spatial_data <- spatial_year[[i]]
+      
+      # Rotate spatial data
+      spatial_data <- rotate_data(spatial_data)
+      
+      # Set annotation position
+      x <- st_bbox(spatial_data)[3] #* 0.999995
+      y <- st_bbox(spatial_data)[2] * 1.000001
+      x2 <- st_bbox(spatial_data)[1]
+      y2 <- st_bbox(spatial_data)[4]
+      
+      # Create plot of proportional overlap grid at currently specified height
+      plot_list[[i]] <- ggplot() +
+        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray40', lwd = 0.03, show.legend = FALSE) +
+        annotate("text",
+                 label = paste0(cut_heights[i], " m"),
+                 x = x ,
+                 y = y,
+                 hjust = "inward",
+                 color = 'gray20',
+                 size = 1,
+                 fontface = "bold") +
+        {if(i == length(spatial_year)) annotate("text",
+                                                label = paste0("Year ", j),
+                                                x = x2 ,
+                                                y = y2,
+                                                hjust = "inward",
+                                                color = 'gray20',
+                                                size = 1,
+                                                fontface = "bold")} +
+        scale_fill_viridis_c(option = 'E', na.value = "transparent") +
+        theme_void()
+      
+    } 
+    
+    # Write out PNG of overlap grids for all heights
+    png(paste0(path, filename, "_", years[j], ".png"), height = 150 * length(spatial_year), width = 400, pointsize = 12, res = 300)
+    grid.arrange(grobs = rev(plot_list), ncol = 1)
+    dev.off()
+    
+    NULL # Because function is not meant to return anything
+  })
+}
+
+# Create a web-based, interactive score sheet to assess the outcome of a landscape design 
+create_interactive_score_sheet <- function(spatial_points,
+                                           boundary = NULL,
+                                           spatial_list = NULL,
+                                           path_directory) {
+  
+  ### Density ###
+  print("Preparing density plot...")
+  png(paste0(path_directory, "density.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  print(plot_classes(spatial_points = spatial_points,
+                     variable_name = "density",
+                     colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
+                     image_path = "data/images/leaves_icon.png"))
+  dev.off()
+  
+  ### Texture ###
+  print("Preparing texture plot...")
+  png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  print(plot_classes(spatial_points = spatial_points,
+                     variable_name = "texture",
+                     colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
+                     image_path = "data/images/texture_icon.png"))
+  dev.off()
+  
+  ### Size ###
+  print("Preparing sizes plot...")
+  png(paste0(path_directory, "size.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  print(plot_classes(spatial_points = spatial_points,
+                     variable_name = "size",
+                     colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
+                     image_path = "data/images/vegetation_icon.png"))
+  dev.off()
+  
+  ### Endemism ###
+  print("Preparing endemism plot...")
+  png(paste0(path_directory, "endemism.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  print(plot_percent(spatial_points = spatial_points,
+                     variable_name = "endemism",
+                     target_value = "native",
+                     colour = "#a072a6",
+                     label = "NATIVE"))
+  dev.off()
+  
+  ### Patterning ###
+  print("Preparing patterning plot...")
+  png(paste0(path_directory, "patterning.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  print(plot_percent(spatial_points = spatial_points,
+                     boundary = boundary,
+                     variable_name = "patterning",
+                     colour = "#a19a65",
+                     label = "DISTRIBUTION\nSCORE"))
+  dev.off()
+  
+  ### Species richness ###
+  print("Preparing species plot...")
+  png(paste0(path_directory, "richness.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  print(plot_circ_bar(spatial_points = spatial_points,
+                      variable_name = "richness",
+                      colours = "#858383",
+                      polar_rotation = 0.25))
+  dev.off()
+  
+  ### Phenology ###
+  print("Preparing phenology plot...")
+  png(paste0(path_directory, "phenology.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  print(plot_circ_bar(spatial_points = spatial_points,
+                      variable_name = "phenology",
+                      colours = "#b0d4d6",
+                      polar_rotation = 0.25))
+  dev.off()
+  
+  if(!is.null(spatial_list)) {
+    ### Coverage at 1m ###
+    print("Preparing coverage plot...")
+    png(paste0(path_directory, "coverage.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(plot_circ_bar(spatial_points = spatial_points,
+                        spatial_list = spatial_list,
+                        variable_name = "coverage",
+                        colours = "#c9837d"))
+    dev.off()
+    
+    ### Connectivity ###
+    print("Preparing connectivity plot...")
+    png(paste0(path_directory, "connectivity.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(plot_circ_bar(spatial_points = spatial_points,
+                        spatial_list = spatial_list,
+                        #obstructions = obstructions,
+                        variable_name = "connectivity",
+                        stacked = TRUE))
+    dev.off()
+  }
+  
+  print("Creating score sheet.")
+  file.copy("data/main.css", paste0(path_directory, "main.css"), overwrite = TRUE)
+  file.copy("data/index.html", paste0(path_directory, "index.html"), overwrite = TRUE)
+  
+  if(!is.null(spatial_list)) {
+    file.copy("data/index_full.html", paste0(path_directory, "index.html"), overwrite = TRUE)
+  }
+  
+}
+
+# Create a grid over site boundary to organise and analyse data
 create_grid <- function(boundary, # Boundary to create grid cells over
                         hex_gridshape = TRUE, # Shape of grid; default is hexagonal
                         cellarea = 10 # Size of grid cells in square meters
@@ -104,41 +329,157 @@ create_grid <- function(boundary, # Boundary to create grid cells over
   grid
 }
 
-#### Geometric form functions
-columnar <- function(adj_cut_height = 0, plant_height = 0) {
-  ifelse(adj_cut_height < (plant_height * 0.33), 0, 1)
+# Convert polygons to points based on spacing and proportion coverage of plants
+convert_combine <- function(point_locations, # Spatial geometry and attributes of plants
+                            polygon_locations # Spatial geometry and attributes of planted areas
+) {
+  polygon_locations <- st_buffer(polygon_locations, 0)
+  
+  check_spatial_input(point_locations = point_locations, polygon_locations = polygon_locations)
+  
+  n_polys <- nrow(polygon_locations)
+  
+  point_list <- lapply(seq_len(n_polys), function(i) {
+    data <- st_drop_geometry(polygon_locations[i, ])
+    cell_size <- 1 / sqrt(polygon_locations$spacing[i])
+    grid <- st_make_grid(st_bbox(polygon_locations$geometry[i]), cellsize = cell_size, what = "centers")
+    points <- st_intersection(grid, polygon_locations$geometry[i])
+    n_points <- length(points)
+    points <- points[sample(seq_len(n_points), pmax(1, floor(n_points * polygon_locations$coverage[i] / 100)))]
+    st_sf(data, geometry = points)
+  })
+  
+  new_plant_points <- do.call(rbind, point_list)
+  
+  rbind(point_locations, new_plant_points)
 }
 
-pyramidal <- function(adj_cut_height = 0, plant_height = 0) {
-  ifelse(adj_cut_height < (plant_height * 0.33), 0, ((-1 * adj_cut_height) + plant_height) / (plant_height - (plant_height * 0.33)))
+# Estimate how well the site vegetation is connected using a threshold value
+# for proportion of vegetation coverage in each cell
+estimate_connectivity <- function(spatial_list, threshold = 0.3) {
+  # Extract unique years from file list
+  years <- names(spatial_list)
+  n_year_groups <- length(years)
+  
+  # Extract unique heights from file list and convert to numeric and meter units
+  heights <- names(spatial_list[[1]])
+  heights <- as.numeric(substr(heights, (nchar(heights) + 1) - 4, nchar(heights))) / 100
+  n_heights <- length(heights)
+  
+  master_grid <- spatial_list[[1]][[1]]
+  
+  grid_spacing <- attr(spatial_list, 'gridspacing')
+  
+  search_dist <- grid_spacing * 1.5
+  
+  buffers <- st_buffer(st_centroid(master_grid$geometry), search_dist)
+  
+  points <- st_centroid(master_grid$geometry)
+  points <- st_sf(data.frame("id" = 1:length(points)), geometry = points)
+  
+  idx <- master_grid$id
+  
+  # Create master neighborhood list
+  nb_list <- lapply(idx, function(p) {
+    ids <- points$id[st_intersects(points, buffers[p], sparse = FALSE, prepared = FALSE)]
+    ids <- setdiff(ids, p)
+  })
+  
+  scores_df <- data.frame(matrix(NA, nrow = n_year_groups, ncol = n_heights))
+  colnames(scores_df) <- names(spatial_list[[1]])
+  
+  for (i in seq_len(n_year_groups)) {
+    
+    spatial_year <- spatial_list[[i]]
+    
+    scores <- sapply(seq_len(n_heights), function(j) {
+      
+      grid <- spatial_year[[j]]
+      
+      grid$prop_ol[is.na(grid$prop_ol)] <- 0
+      
+      # Based on threshold value
+      grid$prop_ol <- ifelse(grid$prop_ol > threshold, 1, 0)
+      
+      # # Based on Bernoulli probabilities
+      # grid$prop_ol <- base::round(grid$prop_ol, 3)
+      # grid$prop_ol <- rbinom(n = length(grid$prop_ol), size = 1, prob = grid$prop_ol)
+      
+      mean(sapply(idx, function(p) {
+        sum(grid$prop_ol[nb_list[[p]]]) / length(nb_list[[p]])
+      }))
+      
+    })
+    
+    scores_df[i, ] <- scores
+    
+  }
+  
+  scores_df
+  
 }
 
-round <- function(adj_cut_height = 0, plant_height = 0) {
-  sqrt(pmax(0, (plant_height * 0.33)^2 - (adj_cut_height - (plant_height * 0.66))^2)) / (plant_height * 0.33)
-}
-
-rounded <- function(adj_cut_height = 0, plant_height = 0) {
-  sqrt(pmax(0, (plant_height * 0.5)^2 - (adj_cut_height - (plant_height * 0.5))^2)) / (plant_height * 0.5)
-}
-
-mounding <- function(adj_cut_height = 0, plant_height = 0) {
-  sqrt(plant_height^2 - adj_cut_height^2)
-}
-
-vase <- function(adj_cut_height = 0, plant_height = 0) {
-  (adj_cut_height / plant_height)
-}
-
-upright <- function(adj_cut_height = 0, plant_height = 0) {
-  adj_cut_height / adj_cut_height
-}
-
-# Calculate the overall Shannon Diversity Evenness Index
-shannon_evenness <- function(counts) {
-  sp_props <- counts / sum(counts)
-  sdi <- -sum(sp_props * log(sp_props))
-  max_sdi <- log(length(counts)) 
-  signif(sdi / max_sdi, 2)
+# Export a data file for use in an interactive Shiny application
+export_image_set <- function(spatial_list, path, filename) {
+  
+  # Extract unique years from file list
+  years <- names(spatial_list)
+  n_year_groups <- length(years)
+  
+  # Extract unique heights from file list and convert to numeric and meter units
+  cut_heights <- names(spatial_list[[1]])
+  cut_heights <- as.numeric(substr(cut_heights, (nchar(cut_heights) + 1) - 4, nchar(cut_heights))) / 100
+  
+  plot_set <- sapply(seq_len(n_year_groups), function(j) {
+    print(paste0("Processing year ", j))
+    
+    spatial_year <- spatial_list[[j]]
+    
+    plot_list <- list()
+    
+    for (i in 1:length(spatial_year)) {
+      
+      # Load processed spatial data
+      spatial_data <- spatial_year[[i]]
+      
+      # Rotate spatial data
+      spatial_data <- rotate_data(spatial_data)
+      
+      # Set annotation position
+      x <- st_bbox(spatial_data)[3] #* 0.999995
+      y <- st_bbox(spatial_data)[2] * 1.000001
+      x2 <- st_bbox(spatial_data)[1]
+      y2 <- st_bbox(spatial_data)[4]
+      
+      # Create plot of proportional overlap grid at currently specified height
+      plot_list[[i]] <- ggplot() +
+        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray20', lwd = 0.03, show.legend = FALSE) +
+        annotate("text",
+                 label = paste0(cut_heights[i], " m"),
+                 x = x ,
+                 y = y,
+                 hjust = "inward",
+                 color = 'gray20',
+                 size = 5,
+                 fontface = "bold") +
+        {if(i == length(spatial_year)) annotate("text",
+                                                label = paste0("Year ", j),
+                                                x = x2 ,
+                                                y = y2,
+                                                hjust = "inward",
+                                                color = 'gray20',
+                                                size = 5,
+                                                fontface = "bold")} +
+        scale_fill_viridis_c(option = 'E', na.value = "transparent") +
+        theme_void()
+      
+    } 
+    
+    arrangeGrob(grobs = rev(plot_list), ncol = 1)
+  })
+  
+  save(plot_set, file = paste0(path, filename))
+  
 }
 
 # Extract the proportion coverage of vegetation per grid cell from spatial data at 1 meter height
@@ -164,31 +505,6 @@ extract_1m_coverage <- function(spatial_list) {
     sum(grid$prop_ol) / length(grid$prop_ol)
     
   })
-}
-
-# Convert polygons to points based on spacing and proportion coverage of plants
-convert_combine <- function(point_locations, # Spatial geometry and attributes of plants
-                            polygon_locations # Spatial geometry and attributes of planted areas
-) {
-  polygon_locations <- st_buffer(polygon_locations, 0)
-  
-  check_spatial_input(point_locations = point_locations, polygon_locations = polygon_locations)
-  
-  n_polys <- nrow(polygon_locations)
-  
-  point_list <- lapply(seq_len(n_polys), function(i) {
-    data <- st_drop_geometry(polygon_locations[i, ])
-    cell_size <- 1 / sqrt(polygon_locations$spacing[i])
-    grid <- st_make_grid(st_bbox(polygon_locations$geometry[i]), cellsize = cell_size, what = "centers")
-    points <- st_intersection(grid, polygon_locations$geometry[i])
-    n_points <- length(points)
-    points <- points[sample(seq_len(n_points), pmax(1, floor(n_points * polygon_locations$coverage[i] / 100)))]
-    st_sf(data, geometry = points)
-  })
-  
-  new_plant_points <- do.call(rbind, point_list)
-  
-  rbind(point_locations, new_plant_points)
 }
 
 # Build the vegetation structure over time and horizontally cut at specified heights
@@ -334,358 +650,7 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
   out
 }
 
-# Estimate how well the site vegetation is connected using a threshold value
-# for proportion of vegetation coverage in each cell
-estimate_connectivity <- function(spatial_list,
-                                  threshold = 0.3) {
-  # Extract unique years from file list
-  years <- names(spatial_list)
-  n_year_groups <- length(years)
-  
-  # Extract unique heights from file list and convert to numeric and meter units
-  heights <- names(spatial_list[[1]])
-  heights <- as.numeric(substr(heights, (nchar(heights) + 1) - 4, nchar(heights))) / 100
-  n_heights <- length(heights)
-  
-  master_grid <- spatial_list[[1]][[1]]
-  
-  grid_spacing <- attr(spatial_list, 'gridspacing')
-  
-  search_dist <- grid_spacing * 1.5
-  
-  buffers <- st_buffer(st_centroid(master_grid$geometry), search_dist)
-  
-  points <- st_centroid(master_grid$geometry)
-  points <- st_sf(data.frame("id" = 1:length(points)), geometry = points)
-  
-  idx <- master_grid$id
-  
-  # Create master neighborhood list
-  nb_list <- lapply(idx, function(p) {
-    ids <- points$id[st_intersects(points, buffers[p], sparse = FALSE, prepared = FALSE)]
-    ids <- setdiff(ids, p)
-  })
-  
-  scores_df <- data.frame(matrix(NA, nrow = n_year_groups, ncol = n_heights))
-  colnames(scores_df) <- names(spatial_list[[1]])
-  
-  for (i in seq_len(n_year_groups)) {
-    
-    spatial_year <- spatial_list[[i]]
-    
-    scores <- sapply(seq_len(n_heights), function(j) {
-      
-      grid <- spatial_year[[j]]
-      
-      grid$prop_ol[is.na(grid$prop_ol)] <- 0
-      
-      # Based on threshold value
-      grid$prop_ol <- ifelse(grid$prop_ol > threshold, 1, 0)
-      
-      # # Based on Bernoulli probabilities
-      # grid$prop_ol <- base::round(grid$prop_ol, 3)
-      # grid$prop_ol <- rbinom(n = length(grid$prop_ol), size = 1, prob = grid$prop_ol)
-      
-      mean(sapply(idx, function(p) {
-        sum(grid$prop_ol[nb_list[[p]]]) / length(nb_list[[p]])
-      }))
-      
-    })
-    
-    scores_df[i, ] <- scores
-    
-  }
-  
-  scores_df
-  
-}
-
-# estimate_clumpiness <- function(spatial_list,
-#                                 #obstructions,
-#                                 threshold = 0.3) {
-#   # Extract unique years from file list
-#   years <- names(spatial_list)
-#   n_year_groups <- length(years)
-#   
-#   # Extract unique heights from file list and convert to numeric and meter units
-#   heights <- names(spatial_list[[1]])
-#   heights <- as.numeric(substr(heights, (nchar(heights) + 1) - 4, nchar(heights))) / 100
-#   n_heights <- length(heights)
-#   
-#   master_grid <- spatial_list[[1]][[1]]
-#   
-#   grid_spacing <- attr(spatial_list, 'gridspacing')
-#   
-#   search_dist <- grid_spacing * 1.25
-#   
-#   buffers <- st_buffer(st_centroid(master_grid$geometry), search_dist)
-#   
-#   points <- st_centroid(master_grid$geometry)
-#   points <- st_sf(data.frame("id" = 1:length(points)), geometry = points)
-#   
-#   idx <- master_grid$id
-#   
-#   # Determine which points to exclude at each cut height
-#   #obstruction_idx <- which(obstructions$height >= cut_height)
-#   
-#   grid_cell_n_sides <- nrow(st_coordinates(master_grid[1, ])) - 1
-#   
-#   # Create master neighborhood list
-#   nb_list <- lapply(idx, function(p) {
-#     ids <- points$id[st_intersects(points, buffers[p], sparse = FALSE, prepared = FALSE)]
-#     ids <- setdiff(ids, p)
-#   })
-#   
-#   scores_df <- data.frame(matrix(NA, nrow = n_year_groups, ncol = n_heights))
-#   colnames(scores_df) <- names(spatial_list[[1]])
-#   
-#   for (i in seq_len(n_year_groups)) {
-#     
-#     spatial_year <- spatial_list[[i]]
-#     
-#     scores <- sapply(seq_len(n_heights), function(j) {
-#       
-#       grid <- spatial_year[[j]]
-#       
-#       grid$prop_ol[is.na(grid$prop_ol)] <- 0
-#       
-#       # Based on threshold value
-#       grid$prop_ol <- ifelse(grid$prop_ol > threshold, 1, 0)
-#       
-#       # # Based on Bernoulli probabilities
-#       # grid$prop_ol <- base::round(grid$prop_ol, 3)
-#       # grid$prop_ol <- rbinom(n = length(grid$prop_ol), size = 1, prob = grid$prop_ol)
-#       
-#       mean(sapply(idx, function(p) {
-#         sum(grid$prop_ol[nb_list[[p]]]) / length(nb_list[[p]])
-#       }))
-#       
-#     })
-#     
-#     scores_df[i, ] <- scores
-#     
-#   }
-#   
-#   scores_df
-#   
-# }
-
-create_images <- function(spatial_list, path, filename) {
-  
-  # Extract unique years from file list
-  years <- names(spatial_list)
-  n_year_groups <- length(years)
-  
-  # Extract unique heights from file list and convert to numeric and meter units
-  cut_heights <- names(spatial_list[[1]])
-  cut_heights <- as.numeric(substr(cut_heights, (nchar(cut_heights) + 1) - 4, nchar(cut_heights))) / 100
-  
-  sapply(seq_len(n_year_groups), function(j) {
-    
-    spatial_year <- spatial_list[[j]]
-    
-    plot_list <- list()
-    
-    for (i in 1:length(spatial_year)) {
-      
-      # Load processed spatial data
-      spatial_data <- spatial_year[[i]]
-      
-      # Rotate spatial data
-      spatial_data <- rotate_data(spatial_data)
-      
-      # Set annotation position
-      x <- st_bbox(spatial_data)[3] #* 0.999995
-      y <- st_bbox(spatial_data)[2] * 1.000001
-      x2 <- st_bbox(spatial_data)[1]
-      y2 <- st_bbox(spatial_data)[4]
-      
-      # Create plot of proportional overlap grid at currently specified height
-      plot_list[[i]] <- ggplot() +
-        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray40', lwd = 0.03, show.legend = FALSE) +
-        annotate("text",
-                 label = paste0(cut_heights[i], " m"),
-                 x = x ,
-                 y = y,
-                 hjust = "inward",
-                 color = 'gray20',
-                 size = 1,
-                 fontface = "bold") +
-        {if(i == length(spatial_year)) annotate("text",
-                                                label = paste0("Year ", j),
-                                                x = x2 ,
-                                                y = y2,
-                                                hjust = "inward",
-                                                color = 'gray20',
-                                                size = 1,
-                                                fontface = "bold")} +
-        scale_fill_viridis_c(option = 'E', na.value = "transparent") +
-        theme_void()
-      
-    } 
-    
-    # Write out PNG of overlap grids for all heights
-    png(paste0(path, filename, "_", years[j], ".png"), height = 150 * length(spatial_year), width = 400, pointsize = 12, res = 300)
-    grid.arrange(grobs = rev(plot_list), ncol = 1)
-    dev.off()
-    
-    NULL # Because function is not meant to return anything
-  })
-}
-
-export_image_set <- function(spatial_list, path, filename) {
-  
-  # Extract unique years from file list
-  years <- names(spatial_list)
-  n_year_groups <- length(years)
-  
-  # Extract unique heights from file list and convert to numeric and meter units
-  cut_heights <- names(spatial_list[[1]])
-  cut_heights <- as.numeric(substr(cut_heights, (nchar(cut_heights) + 1) - 4, nchar(cut_heights))) / 100
-  
-  plot_set <- sapply(seq_len(n_year_groups), function(j) {
-    print(paste0("Processing year ", j))
-    
-    spatial_year <- spatial_list[[j]]
-    
-    plot_list <- list()
-    
-    for (i in 1:length(spatial_year)) {
-      
-      # Load processed spatial data
-      spatial_data <- spatial_year[[i]]
-      
-      # Rotate spatial data
-      spatial_data <- rotate_data(spatial_data)
-      
-      # Set annotation position
-      x <- st_bbox(spatial_data)[3] #* 0.999995
-      y <- st_bbox(spatial_data)[2] * 1.000001
-      x2 <- st_bbox(spatial_data)[1]
-      y2 <- st_bbox(spatial_data)[4]
-      
-      # Create plot of proportional overlap grid at currently specified height
-      plot_list[[i]] <- ggplot() +
-        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray20', lwd = 0.03, show.legend = FALSE) +
-        annotate("text",
-                 label = paste0(cut_heights[i], " m"),
-                 x = x ,
-                 y = y,
-                 hjust = "inward",
-                 color = 'gray20',
-                 size = 5,
-                 fontface = "bold") +
-        {if(i == length(spatial_year)) annotate("text",
-                                                label = paste0("Year ", j),
-                                                x = x2 ,
-                                                y = y2,
-                                                hjust = "inward",
-                                                color = 'gray20',
-                                                size = 5,
-                                                fontface = "bold")} +
-        scale_fill_viridis_c(option = 'E', na.value = "transparent") +
-        theme_void()
-      
-    } 
-    
-    arrangeGrob(grobs = rev(plot_list), ncol = 1)
-  })
-  
-  save(plot_set, file = paste0(path, filename))
-  
-}
-
-plot_classes <- function(spatial_points, variable_name, colour_palette, image_path) {
-  st_geometry(spatial_points) <- NULL
-  spatial_points <- as.data.frame(spatial_points)
-  
-  height_ranges <- rbind(cbind(0, 0.75),
-                         cbind(0.75, 1.5),
-                         cbind(1.5, 3),
-                         cbind(3, Inf))
-  
-  ifelse(variable_name == "size",
-         data <- data.frame(
-           category = c("0-0.75m", "0.75-1.5m", "1.5-3m", "+3m"),
-           values = apply(height_ranges, 1, function(hts) length(which(spatial_points$max_height > hts[1] & spatial_points$max_height <= hts[2])))
-         ),
-         data <- data.frame(
-           category = toupper(unique(spatial_points[ , variable_name])),
-           values = sapply(unique(spatial_points[ , variable_name]), function(var) length(which(spatial_points[ , variable_name] == var)))
-         ))
-  
-  # Compute percentages
-  data$fraction = data$values / sum(data$values)
-  
-  # Compute the cumulative percentages (top of each rectangle)
-  data$ymax = cumsum(data$fraction)
-  
-  # Compute the bottom of each rectangle
-  data$ymin = c(0, head(data$ymax, n = -1))
-  
-  # Compute label position
-  data$labelPosition <- (data$ymax + data$ymin) / 2
-  
-  # Check for any zero values
-  idx <- which(data$values > 0)
-  
-  # Make the plot
-  ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = category)) +
-    geom_rect() +
-    geom_text(x = 3.5, aes(y = labelPosition[idx], label = category[idx]), size = 2.5) +
-    scale_fill_manual(values = colour_palette) +
-    coord_polar(theta = "y") +
-    xlim(c(0.8, 4)) +
-    theme_void() +
-    theme(legend.position = "none") +
-    
-    geom_image(data = data.frame(xx = 0.8, yy = 0, image = image_path), mapping = aes(xx, yy, image = image), size = .3, inherit.aes = FALSE)
-}
-
-plot_percent <- function(spatial_points, variable_name, colour, label) {
-  st_geometry(spatial_points) <- NULL
-  spatial_points <- as.data.frame(spatial_points)
-  
-  props <- table(spatial_points[ , variable_name])
-  
-  if(length(props) == 1 && names(props) %in% c("native", "evergreen")) {
-    props <- c(0, props)
-  }
-  
-  if(length(props) == 1 && names(props) %in% c("exotic", "deciduous")) {
-    props <- c(props, 0)
-  }
-  
-  zero_prop <- base::round((props[1] / sum(props)) * 100)
-  one_prop <- base::round((props[2] / sum(props)) * 100)
-  
-  data <- data.frame(
-    category = 1:100,
-    values = c(rep(0, zero_prop), rep(1, one_prop))
-  )
-  
-  # Compute the cumulative percentages (top of each rectangle)
-  data$ymax = 1:100
-  
-  # Compute the bottom of each rectangle
-  data$ymin = c(0, head(data$ymax, n = -1))
-  
-  pr_palette <- c(rep(colour, one_prop),  rep("#e8e8e8", zero_prop))
-  
-  # Make the plot
-  ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 5, xmin = 1, fill = factor(category))) +
-    geom_rect(color = "white", linewidth = 1) +
-    geom_point(aes(x = 0, y = -max(values) * 0.5), color = "white", size = 50) +
-    #geom_text(x = 3.5, aes(y = labelPosition, label = toupper(category)), size = 4) +
-    scale_fill_manual(values = pr_palette) +
-    coord_polar(theta = "y") +
-    xlim(c(0, 5)) +
-    theme_void() +
-    theme(legend.position = "none") +
-    
-    geom_text(data = data.frame(xx = 0, yy = -max(data$values) * 0.5, label = paste0(one_prop, "%\n", label)), mapping = aes(xx, yy, label = label), size = 4, inherit.aes = FALSE)
-}
-
+# Plot multidimensional data as stacked bars in a radial formation
 plot_circ_bar <- function(spatial_points,
                           spatial_list = NULL,
                           #obstructions = NULL,
@@ -836,233 +801,119 @@ plot_circ_bar <- function(spatial_points,
   p
 }
 
-create_static_score_sheet <- function(spatial_points, spatial_list = NULL, path_filename) {
+# Plot categories as bars on a ring
+plot_classes <- function(spatial_points, variable_name, colour_palette, image_path) {
+  st_geometry(spatial_points) <- NULL
+  spatial_points <- as.data.frame(spatial_points)
   
-  ### Density ###
-  print("Preparing density plot...")
-  density_plot <- plot_classes(spatial_points = spatial_points,
-                               variable_name = "density",
-                               colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
-                               image_path = "data/images/leaves_icon.png")
+  height_ranges <- rbind(cbind(0, 0.75),
+                         cbind(0.75, 1.5),
+                         cbind(1.5, 3),
+                         cbind(3, Inf))
   
-  ### Texture ###
-  print("Preparing texture plot...")
-  texture_plot <- plot_classes(spatial_points = spatial_points,
-                               variable_name = "texture",
-                               colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
-                               image_path = "data/images/texture_icon.png")
+  ifelse(variable_name == "size",
+         data <- data.frame(
+           category = c("0-0.75m", "0.75-1.5m", "1.5-3m", "+3m"),
+           values = apply(height_ranges, 1, function(hts) length(which(spatial_points$max_height > hts[1] & spatial_points$max_height <= hts[2])))
+         ),
+         data <- data.frame(
+           category = toupper(unique(spatial_points[ , variable_name])),
+           values = sapply(unique(spatial_points[ , variable_name]), function(var) length(which(spatial_points[ , variable_name] == var)))
+         ))
   
-  ### Size ###
-  print("Preparing sizes plot...")
-  size_plot <- plot_classes(spatial_points = spatial_points,
-                            variable_name = "size",
-                            colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
-                            image_path = "data/images/vegetation_icon.png")
+  # Compute percentages
+  data$fraction = data$values / sum(data$values)
   
-  ### Endemism ###
-  print("Preparing endemism plot...")
-  endemism_plot <- plot_percent(spatial_points = spatial_points,
-                                variable_name = "endemism",
-                                colour = "#a072a6",
-                                label = "NATIVE")
+  # Compute the cumulative percentages (top of each rectangle)
+  data$ymax = cumsum(data$fraction)
   
-  # ### Type ###
-  # print("Preparing type plot...")
-  # type_plot <- plot_percent(spatial_points = spatial_points,
-  #                           variable_name = "type",
-  #                           colour = "#a19a65",
-  #                           label = "EVERGREEN")
+  # Compute the bottom of each rectangle
+  data$ymin = c(0, head(data$ymax, n = -1))
   
-  ### Species richness ###
-  print("Preparing species plot...")
-  richness_plot <- plot_circ_bar(spatial_points = spatial_points,
-                                 variable_name = "richness",
-                                 colours = "#858383",
-                                 polar_rotation = 0.25)
+  # Compute label position
+  data$labelPosition <- (data$ymax + data$ymin) / 2
   
-  ### Phenology ###
-  print("Preparing phenology plot...")
-  phenology_plot <- plot_circ_bar(spatial_points = spatial_points,
-                                  variable_name = "phenology",
-                                  colours = "#b0d4d6",
-                                  polar_rotation = 0.25)
+  # Check for any zero values
+  idx <- which(data$values > 0)
   
-  if(!is.null(spatial_list)) {
-    ### Coverage at 1m ###
-    print("Preparing coverage plot...")
-    coverage_plot <- plot_circ_bar(spatial_points = spatial_points,
-                                   spatial_list = spatial_list,
-                                   variable_name = "coverage",
-                                   colours = "#c9837d")
+  # Make the plot
+  ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = category)) +
+    geom_rect() +
+    geom_text(x = 3.5, aes(y = labelPosition[idx], label = category[idx]), size = 2.5) +
+    scale_fill_manual(values = colour_palette) +
+    coord_polar(theta = "y") +
+    xlim(c(0.8, 4)) +
+    theme_void() +
+    theme(legend.position = "none") +
     
-    ### Connectivity ###
-    print("Preparing connectivity plot...")
-    connectivity_plot <- plot_circ_bar(spatial_points = spatial_points,
-                                       spatial_list = spatial_list,
-                                       #obstructions = obstructions,
-                                       variable_name = "connectivity",
-                                       stacked = TRUE)
-    
-    ### Configuration ###
-    print("Preparing configuration plot...")
-    configuration_plot <- plot_circ_bar(spatial_points = spatial_points,
-                                        spatial_list = spatial_list,
-                                        #obstructions = obstructions,
-                                        variable_name = "configuration",
-                                        stacked = TRUE)
+    geom_image(data = data.frame(xx = 0.8, yy = 0, image = image_path), mapping = aes(xx, yy, image = image), size = .3, inherit.aes = FALSE)
+}
+
+# Plot proportion of categories as ticks on a ring
+plot_percent <- function(spatial_points,
+                         boundary = NULL,
+                         variable_name,
+                         target_value,
+                         colour,
+                         label) {
+  
+  if(variable_name == "patterning") {
+    score <- analyse_spatial_patterning(spatial_points, boundary)
+    zero_prop <- base::round((1 - score) * 100)
+    one_prop <- base::round(score * 100)
   }
   
-  plot_list <- list(density_plot,
-                    texture_plot,
-                    size_plot,
-                    richness_plot,
-                    endemism_plot,
-                    phenology_plot
+  if(variable_name == "endemism") {
+    st_geometry(spatial_points) <- NULL
+    spatial_points <- as.data.frame(spatial_points)
+    
+    props <- table(spatial_points[ , variable_name])
+    
+    if(length(props) == 1 && names(props) %in% target_value) {
+      props <- c(0, props)
+    }
+    
+    zero_prop <- base::round((props[1] / sum(props)) * 100)
+    one_prop <- base::round((props[2] / sum(props)) * 100)
+    
+  }
+  
+  data <- data.frame(
+    category = 1:100,
+    values = c(rep(0, zero_prop), rep(1, one_prop))
   )
   
-  if(!is.null(spatial_list)) {
-    plot_list <- append(plot_list,
-                        list(configuration_plot, coverage_plot, connectivity_plot))
-  }
+  # Compute the cumulative percentages (top of each rectangle)
+  data$ymax = 1:100
   
-  print("Creating score sheet.")
-  png(path_filename, height = 2400, width = 2400, pointsize = 4, res = 300)
-  grid.arrange(grobs = plot_list, ncol = 3)
-  dev.off()
-}
+  # Compute the bottom of each rectangle
+  data$ymin = c(0, head(data$ymax, n = -1))
+  
+  pr_palette <- c(rep(colour, one_prop),  rep("#e8e8e8", zero_prop))
 
-create_interactive_score_sheet <- function(spatial_points, spatial_list = NULL, path_directory) {
-  
-  ### Density ###
-  print("Preparing density plot...")
-  png(paste0(path_directory, "density.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_classes(spatial_points = spatial_points,
-                     variable_name = "density",
-                     colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
-                     image_path = "data/images/leaves_icon.png"))
-  dev.off()
-  
-  ### Texture ###
-  print("Preparing texture plot...")
-  png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_classes(spatial_points = spatial_points,
-                     variable_name = "texture",
-                     colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
-                     image_path = "data/images/texture_icon.png"))
-  dev.off()
-  
-  ### Size ###
-  print("Preparing sizes plot...")
-  png(paste0(path_directory, "size.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_classes(spatial_points = spatial_points,
-                     variable_name = "size",
-                     colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
-                     image_path = "data/images/vegetation_icon.png"))
-  dev.off()
-  
-  ### Endemism ###
-  print("Preparing endemism plot...")
-  png(paste0(path_directory, "endemism.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_percent(spatial_points = spatial_points,
-                     variable_name = "endemism",
-                     colour = "#a072a6",
-                     label = "NATIVE"))
-  dev.off()
-  
-  # ### Type ###
-  # print("Preparing type plot...")
-  # png(paste0(path_directory, "type.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  # print(plot_percent(spatial_points = spatial_points,
-  #              variable_name = "type",
-  #              colour = "#a19a65",
-  #              label = "EVERGREEN"))
-  # dev.off()
-  
-  ### Species richness ###
-  print("Preparing species plot...")
-  png(paste0(path_directory, "richness.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_circ_bar(spatial_points = spatial_points,
-                      variable_name = "richness",
-                      colours = "#858383",
-                      polar_rotation = 0.25))
-  dev.off()
-  
-  ### Phenology ###
-  print("Preparing phenology plot...")
-  png(paste0(path_directory, "phenology.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_circ_bar(spatial_points = spatial_points,
-                      variable_name = "phenology",
-                      colours = "#b0d4d6",
-                      polar_rotation = 0.25))
-  dev.off()
-  
-  if(!is.null(spatial_list)) {
-    ### Coverage at 1m ###
-    print("Preparing coverage plot...")
-    png(paste0(path_directory, "coverage.png"), height = 400, width = 400, pointsize = 4, res = 150)
-    print(plot_circ_bar(spatial_points = spatial_points,
-                        spatial_list = spatial_list,
-                        variable_name = "coverage",
-                        colours = "#c9837d"))
-    dev.off()
+  # Make the plot
+  ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 5, xmin = 1, fill = factor(category))) +
+    geom_rect(color = "white", linewidth = 1) +
+    geom_point(aes(x = 0, y = -max(values) * 0.5), color = "white", size = 50) +
+    #geom_text(x = 3.5, aes(y = labelPosition, label = toupper(category)), size = 4) +
+    scale_fill_manual(values = pr_palette) +
+    coord_polar(theta = "y") +
+    xlim(c(0, 5)) +
+    theme_void() +
+    theme(legend.position = "none") +
     
-    ### Connectivity ###
-    print("Preparing connectivity plot...")
-    png(paste0(path_directory, "connectivity.png"), height = 400, width = 400, pointsize = 4, res = 150)
-    print(plot_circ_bar(spatial_points = spatial_points,
-                        spatial_list = spatial_list,
-                        #obstructions = obstructions,
-                        variable_name = "connectivity",
-                        stacked = TRUE))
-    dev.off()
-  }
-  
-  print("Creating score sheet.")
-  file.copy("data/main.css", paste0(path_directory, "main.css"), overwrite = TRUE)
-  file.copy("data/index.html", paste0(path_directory, "index.html"), overwrite = TRUE)
-  
-  if(!is.null(spatial_list)) {
-    file.copy("data/index_full.html", paste0(path_directory, "index.html"), overwrite = TRUE)
-  }
-  
+    geom_text(data = data.frame(xx = 0,
+                                yy = -max(data$values) * 0.5,
+                                label = ifelse(variable_name == "patterning",
+                                               paste0(base::round(one_prop / 100, digits = 2), "\n", label),
+                                               paste0(one_prop, "%\n", label))),
+              mapping = aes(xx, yy, label = label),
+              size = 4,
+              inherit.aes = FALSE)
 }
 
-check_spatial_input <- function(point_locations, polygon_locations = NULL) {
-  # Verify the geometries
-  if(!all(st_geometry_type(point_locations) == "POINT")) stop("All specified geometry are not points, check input geometry type")
-  
-  if(!is.null(polygon_locations)) {
-    if(!all(st_geometry_type(polygon_locations) == "POLYGON")) stop("All specified geometry are not polygons, check input geometry type")
-  }
-  
-  # Verify the correct column names are used
-  correct_names <- c("species",
-                     "ref_height",
-                     "ini_height",
-                     "endemism",
-                     "phenology",
-                     # "type",
-                     "form",
-                     "density",
-                     "texture",
-                     "max_height",
-                     "max_width",
-                     "year_max",
-                     "spacing",
-                     "coverage")
-  
-  point_data <-as.data.frame(st_drop_geometry(point_locations))
-  if(!identical(names(point_data), correct_names)) stop("Check column names in point data; they are not as required")
-  
-  if(!is.null(polygon_locations)) {
-    polygon_data <-as.data.frame(st_drop_geometry(polygon_locations))
-    if(!identical(names(point_data), correct_names)) stop("Check column names in polygon data; they are not as required")  }
-  
-  NULL 
-}
-
-#### Original function by Stefan Jünger
-#### https://stefanjuenger.github.io/gesis-workshop-geospatial-techniques-R/slides/2_4_Advanced_Maps_II/2_4_Advanced_Maps_II.html#8
+# Original function by Stefan Jünger
+# https://stefanjuenger.github.io/gesis-workshop-geospatial-techniques-R/slides/2_4_Advanced_Maps_II/2_4_Advanced_Maps_II.html#8
 rotate_data <- function(data, x_add = 0, y_add = 0) {
   shear_matrix <- function () { 
     matrix(c(2, 1.2, 0, 1), 2, 2) 
@@ -1075,4 +926,46 @@ rotate_data <- function(data, x_add = 0, y_add = 0) {
       geometry = 
         .$geometry * shear_matrix() * rotate_matrix(pi/20) + c(x_add, y_add)
     )
+}
+
+# Calculate the overall Shannon Diversity Evenness Index
+shannon_evenness <- function(counts) {
+  sp_props <- counts / sum(counts)
+  sdi <- -sum(sp_props * log(sp_props))
+  max_sdi <- log(length(counts)) 
+  signif(sdi / max_sdi, 2)
+}
+
+# Rescale values to be between zero and one
+zero_to_one <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+#### Geometric form functions ####
+columnar <- function(adj_cut_height = 0, plant_height = 0) {
+  ifelse(adj_cut_height < (plant_height * 0.33), 0, 1)
+}
+
+mounding <- function(adj_cut_height = 0, plant_height = 0) {
+  sqrt(plant_height^2 - adj_cut_height^2)
+}
+
+pyramidal <- function(adj_cut_height = 0, plant_height = 0) {
+  ifelse(adj_cut_height < (plant_height * 0.33), 0, ((-1 * adj_cut_height) + plant_height) / (plant_height - (plant_height * 0.33)))
+}
+
+round <- function(adj_cut_height = 0, plant_height = 0) {
+  sqrt(pmax(0, (plant_height * 0.33)^2 - (adj_cut_height - (plant_height * 0.66))^2)) / (plant_height * 0.33)
+}
+
+rounded <- function(adj_cut_height = 0, plant_height = 0) {
+  sqrt(pmax(0, (plant_height * 0.5)^2 - (adj_cut_height - (plant_height * 0.5))^2)) / (plant_height * 0.5)
+}
+
+upright <- function(adj_cut_height = 0, plant_height = 0) {
+  adj_cut_height / adj_cut_height
+}
+
+vase <- function(adj_cut_height = 0, plant_height = 0) {
+  (adj_cut_height / plant_height)
 }

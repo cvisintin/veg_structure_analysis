@@ -27,8 +27,8 @@ save(home_ex_years_1_30, file = "output/sample_landscape/home_ex_years_1_30")
 ####################### Torquay Greenspace #########################
 
 # Load background spatial data for public greenspace example
-park_tq_plant_points <- read_sf("data/gis/torquay/Plant_Data_Park.shp")
-park_tq_site_boundary <- read_sf("data/gis/torquay/Site_Boundary_Park.shp")
+park_tq_plant_points <- read_sf("data/gis/torquay/Plant_Data_TQ_Park.shp")
+park_tq_site_boundary <- read_sf("data/gis/torquay/Site_Boundary_TQ_Park.shp")
 
 # Process vegetation structure data for specified years 
 park_tq_years_1_30 <- process_structure(point_locations = park_tq_plant_points,

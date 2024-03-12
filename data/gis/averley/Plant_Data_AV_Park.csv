@@ -1,12 +1,12 @@
 species,endemism,phenology,form,density,texture,max_height,max_width,year_max,spacing,coverage
-Acacia implexa,regional,jul_aug_sep_oct,pyramidal,open,medium,13,7,15,,
-Angophora costata,regional,oct_nov_dec,round,open,medium,20,12,20,,
-Corymbia citriodora,national,jul_aug_sep_oct_nov,round,open,medium,12,6,10,,
-Eucalyptus aggregata,regional,jan_feb_mar_apr,round,semi-open,medium,15,15,50,,
-Eucalyptus cephalocarpa,regional,feb_mar_apr,round,semi-open,medium,20,15,30,,
-Eucalyptus elata,regional,jan_sep_oct,round,semi-open,medium,15,15,20,,
-Eucalyptus leucoxylon,regional,jun_jul_aug_sep_oct_nov_dec,round,semi-open,medium,12,7,20,,
-Eucalyptus mannifera,regional,jan_mar_apr_may,round,semi-open,medium,15,13,25,,
+Acacia implexa,native,jul_aug_sep_oct,pyramidal,open,medium,13,7,15,,
+Angophora costata,native,oct_nov_dec,round,open,medium,20,12,20,,
+Corymbia citriodora,native,jul_aug_sep_oct_nov,round,open,medium,12,6,10,,
+Eucalyptus aggregata,native,jan_feb_mar_apr,round,semi-open,medium,15,15,50,,
+Eucalyptus cephalocarpa,native,feb_mar_apr,round,semi-open,medium,20,15,30,,
+Eucalyptus elata,native,jan_sep_oct,round,semi-open,medium,15,15,20,,
+Eucalyptus leucoxylon,native,jun_jul_aug_sep_oct_nov_dec,round,semi-open,medium,12,7,20,,
+Eucalyptus mannifera,native,jan_mar_apr_may,round,semi-open,medium,15,13,25,,
 Jacaranda mimosifolia,exotic,oct_nov_dec,round,semi-open,fine,10,8,20,,
 Lagerstroemia fauriei,exotic,dec_jan_feb,round,semi-open,fine,8,8,8,,
 Lagerstroemia indica,exotic,jan_feb_mar,round,semi-open,medium,4,3,15,,
@@ -14,24 +14,24 @@ Malus ioensis,exotic,sep_oct_nov,round,semi-open,medium,4,3,10,,
 Quercus palustris,exotic,,pyramidal,semi-open,medium,15,8,30,,
 Ulmus glabra,exotic,,round,closed,medium,10,12,12,,
 Ulmus parvifolia,exotic,,round,closed,medium,13,10,15,,
-Lomandra fluviatilis A,national,oct_nov_dec_jan,vase,semi-open,coarse,0.4,0.5,2,6,60
-Patersonia occidentalis A,national,oct_nov_dec_jan,vase,semi-open,coarse,0.6,0.5,3,4,40
-Anigozanthos humilis,national,jun_jul_aug_sep_oct_nov,mounding,semi-open,medium,0.6,0.5,3,6,10
+Lomandra fluviatilis A,native,oct_nov_dec_jan,vase,semi-open,coarse,0.4,0.5,2,6,60
+Patersonia occidentalis A,native,oct_nov_dec_jan,vase,semi-open,coarse,0.6,0.5,3,4,40
+Anigozanthos humilis,native,jun_jul_aug_sep_oct_nov,mounding,semi-open,medium,0.6,0.5,3,6,10
 Limonium perezii,exotic,mar_apr_may_jun_jul_aug_sep_oct_nov,mounding,closed,medium,0.75,0.75,3,4,20
-Lomandra longifolia A,regional,oct_nov_dec_jan,mounding,semi-open,coarse,0.6,0.6,3,6,40
+Lomandra longifolia A,native,oct_nov_dec_jan,mounding,semi-open,coarse,0.6,0.6,3,6,40
 Senecio serpens,exotic,sep_oct_nov,mounding,semi-open,medium,0.75,0.9,4,4,30
-Banksia marginata,regional,feb_mar_apr_may_jun_jul_aug_sep_oct_nov,rounded,closed,medium,0.9,1.1,5,3,35
-Correa reflexa,regional,mar_apr_may_jun_jul_aug_sep,mounding,closed,medium,1.25,1.5,3,1,35
-Grevillea alpina,regional,jan_feb_mar_apr_may_sep_oct_nov_dec,mounding,closed,fine,2.1,2.25,5,1,15
-Tetratheca ciliata,regional,aug_sep_oct_nov_dec,mounding,closed,fine,0.6,0.6,3,2,15
-Brachyscome multifida,regional,jan_feb_sep_oct_nov_dec,mounding,closed,fine,0.2,0.6,2,4,40
-Darwinia citriodora,national,jul_aug_sep_oct_nov_dec,mounding,closed,fine,0.45,0.8,2,2,20
-Patersonia occidentalis B,national,oct_nov_dec_jan,vase,semi-open,coarse,0.6,0.5,3,6,40
-Acacia paradoxa,regional,aug_sep_oct_nov,rounded,semi-open,fine,3,3.5,5,1,15
-Bursaria spinosa,regional,nov_dec_jan_feb,rounded,semi-open,fine,2.75,2.25,10,1,15
-Hakea nodosa,regional,apr_may_jun_jul_aug,rounded,semi-open,medium,2,1.5,4,1,15
-Lomandra fluviatilis B,national,oct_nov_dec_jan,vase,semi-open,coarse,0.4,0.5,2,4,35
-Lomandra hystrix,national,oct_nov_dec_jan,vase,semi-open,coarse,1.65,1,5,3,20
-Dianella caerulea,regional,aug_sep_oct_nov_dec,vase,semi-open,coarse,0.35,0.35,2,6,30
-Lomandra longifolia B,national,oct_nov_dec_jan,mounding,semi-open,coarse,0.6,0.6,3,4,40
-Patersonia occidentalis C,national,oct_nov_dec_jan,vase,semi-open,coarse,0.6,0.5,3,6,30
+Banksia marginata,native,feb_mar_apr_may_jun_jul_aug_sep_oct_nov,rounded,closed,medium,0.9,1.1,5,3,35
+Correa reflexa,native,mar_apr_may_jun_jul_aug_sep,mounding,closed,medium,1.25,1.5,3,1,35
+Grevillea alpina,native,jan_feb_mar_apr_may_sep_oct_nov_dec,mounding,closed,fine,2.1,2.25,5,1,15
+Tetratheca ciliata,native,aug_sep_oct_nov_dec,mounding,closed,fine,0.6,0.6,3,2,15
+Brachyscome multifida,native,jan_feb_sep_oct_nov_dec,mounding,closed,fine,0.2,0.6,2,4,40
+Darwinia citriodora,native,jul_aug_sep_oct_nov_dec,mounding,closed,fine,0.45,0.8,2,2,20
+Patersonia occidentalis B,native,oct_nov_dec_jan,vase,semi-open,coarse,0.6,0.5,3,6,40
+Acacia paradoxa,native,aug_sep_oct_nov,rounded,semi-open,fine,3,3.5,5,1,15
+Bursaria spinosa,native,nov_dec_jan_feb,rounded,semi-open,fine,2.75,2.25,10,1,15
+Hakea nodosa,native,apr_may_jun_jul_aug,rounded,semi-open,medium,2,1.5,4,1,15
+Lomandra fluviatilis B,native,oct_nov_dec_jan,vase,semi-open,coarse,0.4,0.5,2,4,35
+Lomandra hystrix,native,oct_nov_dec_jan,vase,semi-open,coarse,1.65,1,5,3,20
+Dianella caerulea,native,aug_sep_oct_nov_dec,vase,semi-open,coarse,0.35,0.35,2,6,30
+Lomandra longifolia B,native,oct_nov_dec_jan,mounding,semi-open,coarse,0.6,0.6,3,4,40
+Patersonia occidentalis C,native,oct_nov_dec_jan,vase,semi-open,coarse,0.6,0.5,3,6,30
