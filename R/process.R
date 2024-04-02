@@ -82,3 +82,28 @@ park_b_years_1_30 <- process_structure(point_locations = park_b_plant_points,
 save(park_b_years_1_30, file = "output/booyeembara/park_b_years_1_30")
 
 ####################################################################
+
+
+
+####################### TESTING BEHAVIOUR #######################
+
+# Load background spatial data for residential project example
+conn_test_plant_points <- read_sf("data/gis/sample_landscape/Conn_Test_Data_Home.shp")
+conn_test_site_boundary <- read_sf("data/gis/sample_landscape/Site_Boundary_Home.shp")
+
+# Process vegetation structure data for specified years 
+conn_test_years_1_30 <- process_structure(point_locations = conn_test_plant_points,
+                                        boundary = conn_test_site_boundary,
+                                        years = 1:30,
+                                        cellarea = 10)
+
+save(conn_test_years_1_30, file = "output/sample_landscape/conn_test_years_1_30")
+
+# Load grids file
+load(file = "output/sample_landscape/conn_test_years_1_30")
+
+# Create score sheet
+create_interactive_score_sheet(spatial_points = conn_test_plant_points,
+                               boundary = conn_test_site_boundary,
+                               spatial_list = conn_test_years_1_30,
+                               path_directory = "figs/web/conn_test/")

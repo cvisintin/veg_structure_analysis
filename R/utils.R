@@ -691,7 +691,7 @@ plot_circ_bar <- function(spatial_points,
     )
   }
   
-  if(variable_name == "configuration" | variable_name == "connectivity" ) {
+  if(variable_name == "connectivity" ) {
     n_year_groups <- length(spatial_list)
     
     data_w <- estimate_connectivity(spatial_list)#, obstructions)
@@ -751,7 +751,7 @@ plot_circ_bar <- function(spatial_points,
   
   if(variable_name == "phenology") {
     p <- p + geom_text(data = data,
-                       aes(x = id, y = value * 0.5, label = toupper(row.names(data))),
+                       mapping = aes(x = id, y = value * 0.5, label = toupper(row.names(data))),
                        color = "black",
                        fontface = "bold",
                        alpha = 0.6,
@@ -767,7 +767,7 @@ plot_circ_bar <- function(spatial_points,
   
   if(variable_name == "coverage" & !is.null(spatial_list)) {
     p <- p + geom_text(data = data,
-                       aes(x = id, y = value * 0.5, label = paste0("Y", toupper(row.names(data)))),
+                       mapping = aes(x = id, y = value * 0.5, label = paste0("Y", toupper(row.names(data)))),
                        color = "black",
                        fontface = "bold",
                        alpha = 0.6,
@@ -783,7 +783,7 @@ plot_circ_bar <- function(spatial_points,
   
   if(variable_name == "connectivity") {
     p <- p + geom_text(data = data[1:nrow(data_w), ],
-                       aes(x = unique(id), y = max_value, label = paste0("Y", row.names(data_w))),
+                       mapping = aes(x = unique(id), y = max_value, label = paste0("Y", row.names(data_w))),
                        color = "black",
                        fontface = "bold",
                        alpha = 0.6,
