@@ -45,27 +45,26 @@ check_spatial_input <- function(point_locations, polygon_locations = NULL) {
   }
   
   # Verify the correct column names are used
-  correct_names <- c("species",
-                     "ref_height",
-                     "ini_height",
-                     "endemism",
-                     "phenology",
-                     # "type",
-                     "form",
+  correct_names <- c("coverage",
                      "density",
-                     "texture",
+                     "endemism",
+                     "form",
+                     "ini_height",
                      "max_height",
                      "max_width",
-                     "year_max",
+                     "phenology",
+                     "ref_height",
                      "spacing",
-                     "coverage")
+                     "species",
+                     "texture",
+                     "year_max" )
   
   point_data <-as.data.frame(st_drop_geometry(point_locations))
-  if(!identical(names(point_data), correct_names)) stop("Check column names in point data; they are not as required")
+  if(!identical(sort(names(point_data)), correct_names)) stop("Check column names in point data; they are not as required")
   
   if(!is.null(polygon_locations)) {
     polygon_data <-as.data.frame(st_drop_geometry(polygon_locations))
-    if(!identical(names(point_data), correct_names)) stop("Check column names in polygon data; they are not as required")  }
+    if(!identical(sort(names(point_data)), correct_names)) stop("Check column names in polygon data; they are not as required")  }
   
   NULL 
 }

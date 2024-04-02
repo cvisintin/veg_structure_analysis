@@ -33,9 +33,13 @@ create_interactive_score_sheet(spatial_points = home_ex_plant_points,
 
 # Load background spatial data
 park_tq_plant_points <- read_sf("data/gis/torquay/Plant_Data_TQ_Park.shp")
+park_tq_site_boundary <- read_sf("data/gis/torquay/Site_Boundary_TQ_Park.shp")
 
 # Load grids file
 load(file = "output/torquay/park_tq_years_1_30")
+
+# Create export for visualisation
+export_image_set(park_tq_years_1_30, path = "output/torquay/", filename = "park_tq_veg_structure")
 
 # Create spatial outputs
 create_images(park_tq_years_1_30, path = "figs/images/torquay/", filename = "park_tq_veg_structure")
@@ -45,6 +49,7 @@ system('convert -delay 50 -dispose previous -loop 0 figs/images/torquay/park_tq_
 
 # Create score sheet
 create_interactive_score_sheet(spatial_points = park_tq_plant_points,
+                               boundary = park_tq_site_boundary,
                                spatial_list = park_tq_years_1_30,
                                path_directory = "figs/web/torquay/")
 
@@ -53,27 +58,27 @@ create_interactive_score_sheet(spatial_points = park_tq_plant_points,
 # Load background spatial data
 park_av_plant_points <- read_sf("data/gis/averley/Plant_Data_AV_Park.shp")
 park_av_planting_polygons <- read_sf("data/gis/averley/Planting_Data_AV_Park.shp")
+park_av_site_boundary <- read_sf("data/gis/averley/Site_Boundary_AV_Park.shp")
 
 # Convert planting polygons to points and combine with existing plant points
 park_av_plant_points <- convert_combine(point_locations = park_av_plant_points,
                                         polygon_locations = park_av_planting_polygons)
 
 # Load grids file
-load(file = "output/park_av_years_1_30")
+load(file = "output/averley/park_av_years_1_30")
+
+# Create export for visualisation
+export_image_set(park_av_years_1_30, path = "output/averley/", filename = "park_av_veg_structure")
 
 # Create spatial outputs
-create_images(park_av_years_1_30, path = "figs/", filename = "park_av_veg_structure")
+create_images(park_av_years_1_30, path = "figs/images/averley/", filename = "park_av_veg_structure")
 
 # Animate spatial outputs
-system('convert -delay 50 -dispose previous -loop 0 figs/park_av_veg* figs/animations/park_av_veg_growth.gif')
-
-# Create score sheet
-create_static_score_sheet(spatial_points = park_av_plant_points,
-                          spatial_list = park_av_years_1_30,
-                          path_filename = "figs/park_av_results.png")
+system('convert -delay 50 -dispose previous -loop 0 figs/images/averley/park_av_veg* figs/animations/park_av_veg_growth.gif')
 
 # Create score sheet
 create_interactive_score_sheet(spatial_points = park_av_plant_points,
+                               boundary = park_av_site_boundary,
                                spatial_list = park_av_years_1_30,
                                path_directory = "figs/web/averley/")
 
@@ -82,6 +87,7 @@ create_interactive_score_sheet(spatial_points = park_av_plant_points,
 # Load background spatial data
 park_b_plant_points <- read_sf("data/gis/booyeembara/Plant_Data_B_Park.shp")
 park_b_planting_polygons <- read_sf("data/gis/booyeembara/Planting_Data_B_Park.shp")
+park_b_site_boundary <- read_sf("data/gis/booyeembara/Site_Boundary_B_Park.shp")
 
 # Convert planting polygons to points and combine with existing plant points
 park_b_plant_points <- convert_combine(point_locations = park_b_plant_points,
@@ -90,18 +96,17 @@ park_b_plant_points <- convert_combine(point_locations = park_b_plant_points,
 # Load grids file
 load(file = "output/booyeembara/park_b_years_1_30")
 
+# Create export for visualisation
+export_image_set(park_b_years_1_30, path = "output/booyeembara/", filename = "park_b_veg_structure")
+
 # Create spatial outputs
-create_images(park_b_years_1_30, path = "figs/", filename = "park_b_veg_structure")
+create_images(park_b_years_1_30, path = "figs/images/booyeembara/", filename = "park_b_veg_structure")
 
 # Animate spatial outputs
-system('convert -delay 50 -dispose previous -loop 0 figs/park_b_veg* figs/animations/park_b_veg_growth.gif')
-
-# Create score sheet
-create_static_score_sheet(spatial_points = park_b_plant_points,
-                          spatial_list = park_b_years_1_30,
-                          path_filename = "figs/park_b_results.png")
+system('convert -delay 50 -dispose previous -loop 0 figs/images/booyeembara/park_b_veg* figs/animations/park_b_veg_growth.gif')
 
 # Create score sheet
 create_interactive_score_sheet(spatial_points = park_b_plant_points,
+                               boundary = park_b_site_boundary,
                                spatial_list = park_b_years_1_30,
                                path_directory = "figs/web/booyeembara/")
