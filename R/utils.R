@@ -687,20 +687,20 @@ plot_circ_bar <- function(spatial_points,
     
     data <- data.frame(
       id = factor(seq_len(n_year_groups)),
-      value = extract_1m_coverage(spatial_list)
+      value = extract_1m_coverage(spatial_list),
+      max = 1
     )
   }
   
   if(variable_name == "connectivity" ) {
     n_year_groups <- length(spatial_list)
     
-    data_w <- estimate_connectivity(spatial_list)#, obstructions)
+    data_w <- estimate_connectivity(spatial_list)
+    
     
     max_value <- ncol(data_w)
     
-    score <- ifelse(variable_name == "connectivity",
-                    base::round(mean(as.matrix(data_w[[1]])), 2),
-                    base::round(mean(as.matrix(data_w[[2]])), 2))
+    score <- base::round(mean(as.matrix(data_w)), 2)
     
     data_w$remainder <- apply(data_w, 1, function(x) ncol(data_w) - sum(x))
     
@@ -712,16 +712,21 @@ plot_circ_bar <- function(spatial_points,
     colours <- c(viridis(ncol(data_w) - 1, end = 0.8), "#e1e1e1")
   }
   
-  if(!stacked) p <- ggplot(data, aes(x = as.factor(id), y = value))
+  if(!stacked & variable_name != "coverage") p <- ggplot(data, aes(x = as.factor(id), y = value))
+  if(!stacked & variable_name == "coverage") p <- ggplot(data, aes(x = as.factor(id), y = max))
   if(stacked) p <- ggplot(data, aes(x = id, y = value, fill = group))
   
-  if(!stacked) p <- p + geom_bar(stat = "identity", fill = colours)
+  if(!stacked & variable_name != "coverage") p <- p + geom_bar(stat = "identity", fill = colours)
+  if(!stacked & variable_name == "coverage") {
+    p <- p + geom_bar(data, mapping = aes(x = as.factor(id), y = max), stat = "identity", fill = "#e1e1e1")
+    p <- p + geom_bar(data, mapping = aes(x = as.factor(id), y = value), stat = "identity", fill = colours)
+    }
   if(stacked) p <- p + geom_bar(position = "stack", stat = "identity")
   if(stacked) p <- p + scale_fill_manual(values = rev(colours))
   
   # Limits of the plot. The negative value controls the size of the inner circle, the positive one is useful to add size over each bar
   if(!stacked & variable_name != "coverage") p <- p + ylim(-max(data$value) * 1.1, max(data$value) * 1.5)
-  if(!stacked & variable_name == "coverage") p <- p + ylim(-max(data$value) * 1.1, max(data$value) * 1.15)
+  if(!stacked & variable_name == "coverage") p <- p + ylim(-1.1, 1.15)
   if(stacked) p <- p + ylim(-max_value * 1.1, max_value * 1.3)
   
   # Custom the theme: no axis title and no cartesian grid
@@ -741,7 +746,7 @@ plot_circ_bar <- function(spatial_points,
   
   # Add additional annotation
   if(variable_name == "richness") {
-    p <- p + geom_text(data = data.frame(xx = min(data$value),
+    p <- p + geom_text(data = data.frame(xx = 0.5,
                                          yy = -max(data$value),
                                          label = paste0(shannon_evenness(data$value), "\nEVENNESS\nSCORE")),
                        mapping = aes(xx, yy, label = label),
@@ -757,7 +762,7 @@ plot_circ_bar <- function(spatial_points,
                        alpha = 0.6,
                        size = 2.5) +
       
-      geom_image(data = data.frame(xx = min(data$value),
+      geom_image(data = data.frame(xx = 0.5,
                                    yy = -max(data$value),
                                    image = "data/images/flower_icon.png"),
                  mapping = aes(xx, yy, image = image),
@@ -767,14 +772,14 @@ plot_circ_bar <- function(spatial_points,
   
   if(variable_name == "coverage" & !is.null(spatial_list)) {
     p <- p + geom_text(data = data,
-                       mapping = aes(x = id, y = value * 0.5, label = paste0("Y", toupper(row.names(data)))),
+                       mapping = aes(x = id, y = 1, label = paste0("Y", toupper(row.names(data)))),
                        color = "black",
                        fontface = "bold",
                        alpha = 0.6,
                        size = 2.5) +
       
       geom_image(data = data.frame(xx = 1,
-                                   yy = -max(data$value) * 1.1,
+                                   yy = -1.1,
                                    image = "data/images/shrub_icon.png"),
                  mapping = aes(xx, yy, image = image),
                  size = .25,
@@ -836,9 +841,9 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
   idx <- which(data$values > 0)
   
   # Make the plot
-  ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = category)) +
+  ggplot(data[idx, ], aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = category)) +
     geom_rect() +
-    geom_text(x = 3.5, aes(y = labelPosition[idx], label = category[idx]), size = 2.5) +
+    geom_text(x = 3.5, aes(y = labelPosition, label = category), size = 2.5) +
     scale_fill_manual(values = colour_palette) +
     coord_polar(theta = "y") +
     xlim(c(0.8, 4)) +
