@@ -1,6 +1,7 @@
 library(ggplot2)
 
-data <- data.frame(id = factor(c(1,2,3)), value = c(1700, 1100, 1350))
+n <- 15
+data <- data.frame(id = factor(seq(1, n)), value = round(runif(n, min = 500, max = 2000)))
 colours = "#858383"
 polar_rotation = 0.25
 
@@ -22,9 +23,9 @@ p <- p + coord_polar(start = polar_rotation)
 
 p <- p + geom_text(data = data.frame(xx = 0.5,
                                      yy = -max(data$value),
-                                     label = paste0(0.98, "\nEVENNESS\nSCORE")),
+                                     label = paste0(0.98, "\nEVENNESS\nSCORE\n\n(", length(data$value), " SPECIES)")),
                    mapping = aes(xx, yy, label = label),
-                   size = 4,
+                   size = 3,
                    inherit.aes = FALSE)
 
 p

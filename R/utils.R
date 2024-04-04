@@ -69,6 +69,22 @@ check_spatial_input <- function(point_locations, polygon_locations = NULL) {
   NULL 
 }
 
+# Combine scorecard images into panels for comparison. Note, 'create_interactive_scorecard'
+# must be run first to access the images.
+combine_score_sheet_images <- function(metric, nrows, ncols, paths) {
+  files <- paste0(paths, metric, ".png")
+  plots <- lapply(files, function(x) {
+    img <- as.raster(readPNG(x))
+    rasterGrob(img, interpolate = FALSE)
+  })
+  ggsave(paste0("figs/images/all_", metric, ".png"),
+         width = (400 * ncols) * 1.1,
+         height = 400 * nrows,
+         units = "px",
+         marrangeGrob(grobs = plots, nrow = nrows, ncol = ncols, top = NULL))
+}
+
+
 # Create axonometric images of grids showing proportional coverage of vegetation
 # at specified heights and for all specified timesteps 
 create_images <- function(spatial_list, path, filename) {
@@ -748,9 +764,9 @@ plot_circ_bar <- function(spatial_points,
   if(variable_name == "richness") {
     p <- p + geom_text(data = data.frame(xx = 0.5,
                                          yy = -max(data$value),
-                                         label = paste0(shannon_evenness(data$value), "\nEVENNESS\nSCORE")),
+                                         label = paste0(shannon_evenness(data$value), "\nEVENNESS\nSCORE\n\n(", length(data$value), " SPECIES)")),
                        mapping = aes(xx, yy, label = label),
-                       size = 4,
+                       size = 3,
                        inherit.aes = FALSE)
   }
   
@@ -798,7 +814,7 @@ plot_circ_bar <- function(spatial_points,
                                   yy = -max_value * 1.1,
                                   label = paste0(score, "\nCONNECTIVITY\nSCORE")),
                 mapping = aes(xx, yy, label = label),
-                size = 4,
+                size = 3,
                 inherit.aes = FALSE)
   }
   
@@ -912,7 +928,7 @@ plot_percent <- function(spatial_points,
                                                paste0(base::round(one_prop / 100, digits = 2), "\n", label),
                                                paste0(one_prop, "%\n", label))),
               mapping = aes(xx, yy, label = label),
-              size = 4,
+              size = 3,
               inherit.aes = FALSE)
 }
 

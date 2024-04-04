@@ -110,3 +110,16 @@ create_interactive_score_sheet(spatial_points = park_b_plant_points,
                                boundary = park_b_site_boundary,
                                spatial_list = park_b_years_1_30,
                                path_directory = "figs/web/booyeembara/")
+
+
+#####################################################################
+
+metrics <- c("connectivity", "coverage", "density", "endemism", "patterning", "phenology", "richness", "size", "texture")
+for (i in metrics) {
+  combine_score_sheet_images(metric = i,
+                             nrows = 1,
+                             ncols = 3,
+                             paths = c("figs/web/torquay/",
+                                       "figs/web/averley/",
+                                       "figs/web/booyeembara/"))
+}
