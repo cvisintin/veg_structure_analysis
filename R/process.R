@@ -106,4 +106,5 @@ load(file = "output/sample_landscape/conn_test_years_1_30")
 create_interactive_score_sheet(spatial_points = conn_test_plant_points,
                                boundary = conn_test_site_boundary,
                                spatial_list = conn_test_years_1_30,
-                               path_directory = "figs/web/conn_test/")
+                               path_directory = "figs/web/conn_test/",
+                               title = "CONNECTIVITY TEST")

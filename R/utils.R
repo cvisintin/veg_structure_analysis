@@ -154,7 +154,8 @@ create_images <- function(spatial_list, path, filename) {
 create_interactive_score_sheet <- function(spatial_points,
                                            boundary = NULL,
                                            spatial_list = NULL,
-                                           path_directory) {
+                                           path_directory,
+                                           title) {
   
   ### Density ###
   print("Preparing density plot...")
@@ -163,15 +164,6 @@ create_interactive_score_sheet <- function(spatial_points,
                      variable_name = "density",
                      colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
                      image_path = "data/images/leaves_icon.png"))
-  dev.off()
-  
-  ### Texture ###
-  print("Preparing texture plot...")
-  png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_classes(spatial_points = spatial_points,
-                     variable_name = "texture",
-                     colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
-                     image_path = "data/images/texture_icon.png"))
   dev.off()
   
   ### Size ###
@@ -183,6 +175,15 @@ create_interactive_score_sheet <- function(spatial_points,
                      image_path = "data/images/vegetation_icon.png"))
   dev.off()
   
+  ### Texture ###
+  print("Preparing texture plot...")
+  png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  print(plot_classes(spatial_points = spatial_points,
+                     variable_name = "texture",
+                     colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
+                     image_path = "data/images/texture_icon.png"))
+  dev.off()
+  
   ### Endemism ###
   print("Preparing endemism plot...")
   png(paste0(path_directory, "endemism.png"), height = 400, width = 400, pointsize = 4, res = 150)
@@ -190,17 +191,17 @@ create_interactive_score_sheet <- function(spatial_points,
                      variable_name = "endemism",
                      target_value = "native",
                      colour = "#a072a6",
-                     label = "NATIVE"))
+                     label = "ENDEMISM"))
   dev.off()
   
-  ### Patterning ###
-  print("Preparing patterning plot...")
-  png(paste0(path_directory, "patterning.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  ### Distribution ###
+  print("Preparing distribution plot...")
+  png(paste0(path_directory, "distribution.png"), height = 400, width = 400, pointsize = 4, res = 150)
   print(plot_percent(spatial_points = spatial_points,
                      boundary = boundary,
-                     variable_name = "patterning",
+                     variable_name = "distribution",
                      colour = "#a19a65",
-                     label = "DISTRIBUTION\nSCORE"))
+                     label = "DISTRIBUTION"))
   dev.off()
   
   ### Species richness ###
@@ -242,13 +243,125 @@ create_interactive_score_sheet <- function(spatial_points,
     dev.off()
   }
   
-  print("Creating score sheet.")
-  file.copy("data/main.css", paste0(path_directory, "main.css"), overwrite = TRUE)
-  file.copy("data/index.html", paste0(path_directory, "index.html"), overwrite = TRUE)
+  print("Calculating total score.")
+  score_names <- ls(pattern = "_score$", envir = .GlobalEnv)
+  total_score <- format(base::round(mean(sapply(score_names, function(x) as.numeric(get(x)))), 2), nsmall = 2)
   
-  if(!is.null(spatial_list)) {
-    file.copy("data/index_full.html", paste0(path_directory, "index.html"), overwrite = TRUE)
+  print("Creating score sheet.")
+  if (file.exists(paste0(path_directory, "index.html"))) {
+    file.remove(paste0(path_directory, "index.html"))
   }
+  
+  cat(paste0("<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+	<meta charset=\"UTF-8\">
+	<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
+	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+	<title>Vegetation structure scorecard</title>
+	<link rel=\"stylesheet\" href=\"main.css\">
+</head>
+<body>
+   <center><h1>", title, " - Overall score: ", total_score, "</h1></center>
+   <div class=\"grid-container\">
+             "),
+      file = paste0(path_directory, "index.html"))
+  
+  html_figures_df <- data.frame(name = c("density", "size", "texture",
+                                         "endemism", "richness", "distribution",
+                                         "coverage", "phenology", "connectivity"),
+                                description = c(
+                                  "Density describes the interstitial space within the foliage. This is
+				primarily an aesthetic metric that is used by the designer, however, may
+				have implications for target species. Density categories should be
+				balanced across the site unless target species are identified - in
+				which case beneficial classes may be more dominantly represented.",
+                                  "This plot represents the proportion of plants that will fall within
+				predetermined height categories at maturity. The predetermined
+				height categories cover off on many species' requirements and should be
+				fairly balanced across the site. In some cases, identified target
+				species may require particular classes to be more dominantly
+				represented.",
+                                  "Texture describes the roughness of the foliage. This is	primarily an
+				aesthetic metric that is used by the designer, however, may
+				have implications for target species. Texture categories should be
+				balanced across the site unless target species are identified - in
+				which case beneficial classes may be more dominantly represented.",
+                                  "This plot reports the proportion of species that are native to the
+				country, not necessarily site, where the project will be realised. It is
+				normally good practice to maximise the amount of native/local vegetation
+				as other native species will have evolved to best utilise them. In some
+				cases, non-aggressive exotic plants that benefit a target species or
+				to create a novel ecosystem may be selected.",
+                                  "This plot illustrates the overall diversity and balance of plant species
+				used on site. The evenness score compares the total numbers of each
+				species (also depicted in the size of the gray bars) - a score close to
+				zero indicates the dominance of a few species; a score of one suggests
+				a more balanced representation of species. It is also important to
+				examine the number of gray bars as this represents the total number of
+				different species on site and should be as large as possible to
+				support biodiversity.",
+                                  "This plot reports an overall score that indicates how well different
+				species are distributed across a site. A low value (approaching zero)
+				indicates that species are clustered or clumped and unevenly distributed
+				around a site. A high value (approaching one) suggests that the species
+				are more randomly and evenly distributed - and closer to what we may
+				encounter in an undistrurbed landscape at a smaller scale.",
+                                  "This plot indicates the relative proportion of vegetation at a one meter
+				cut height across the site, and how it changes through time. It is a
+				coarse proxy for measuring the presence of understory vegetation on site.
+				Each bar represents a year in the specified growth simulation. It is
+				preferable to not see any reductions in the bar heights throughout time
+				as this indicates diminishing understory as the site vegetation matures.
+				The grey portions	of the bars represent the hypothetical maximums",
+                                  "Phenology is a measure of timing of recurring biological events - in
+				this case, which months that plants are flowering in throughout the
+				year. The bars represent the relative proportions of plants that flower
+				in each respective month. In order to provide consistent resources for
+				species	throughout the year, these bars should be relatively balanced.
+				At a minimum, all months should have some flowering plants.",
+                                  "Connectivity is a measure of how much contiguous vegetation exists on
+				the site. A connectivity value close to one indicates a high amount of
+				contiguous or continuous vegetation throughout the site; a value closer
+				to zero suggests very isolated patches of vegetation. Note, this measure
+				is a composite value based on the scores obtained at five heights - by
+				default 0.3m, 1.0m, 1.7m, 2.4m, and 3.1m - also indicated by the colour
+				gradients in the bars (lower heights toward the inner circle). As the
+				vegetation matures over time, connectivity changes, and each bar
+				represents a year in the specified growth simulation. The grey portions
+				of the bars represent the hypothetical maximums."))
+  
+  for (i in 1:nrow(html_figures_df)) {
+    name <- html_figures_df$name[i]
+    Name <- paste0(toupper(substr(name, 1, 1)), substr(name, 2, nchar(name)))
+    cat(paste0("<div class=\"image\">
+		  <img class=\"image__img\" src=\"", name,
+               ".png\" alt=\"", Name, "\">
+		  <div class=\"image__overlay\">
+			<div class=\"image__title\">", Name, "</div>
+			<p class=\"image__description\">",
+               html_figures_df$description[i],
+               "</p>
+		  </div>
+	  </div>
+             "),
+        file = paste0(path_directory, "index.html"),
+        append = TRUE)
+  }
+  
+  cat("  </div> 
+</body>
+</html>
+             ",
+      file = paste0(path_directory, "index.html"),
+      append = TRUE)
+  
+  file.copy("data/main.css", paste0(path_directory, "main.css"), overwrite = TRUE)
+  # file.copy("data/index.html", paste0(path_directory, "index.html"), overwrite = TRUE)
+  
+  # if(!is.null(spatial_list)) {
+  #   file.copy("data/index_full.html", paste0(path_directory, "index.html"), overwrite = TRUE)
+  # }
   
 }
 
@@ -681,6 +794,10 @@ plot_circ_bar <- function(spatial_points,
       id = factor(seq(1, length(unique(species)), 1)),
       value = sapply(unique(species), function(sp) length(which(species == sp)))
     )
+    
+    score <- shannon_evenness(data$value)
+    assign("richness_score", score, envir = .GlobalEnv)
+    
   }
   
   if(variable_name == "phenology") {
@@ -694,6 +811,9 @@ plot_circ_bar <- function(spatial_points,
     
     data$value <- zero_to_one(data$value)
     
+    score <- format(base::round(sum(data$value > 0) / 12, 2), nsmall = 2)
+    assign("phenology_score", score, envir = .GlobalEnv)
+    
     img <- readPNG("data/images/flower_icon.png")
     g <- rasterGrob(img, interpolate = TRUE)
   }
@@ -706,6 +826,9 @@ plot_circ_bar <- function(spatial_points,
       value = extract_1m_coverage(spatial_list),
       max = 1
     )
+    
+    score <- format(base::round(mean(data$value), 2), nsmall = 2)
+    assign("coverage_score", score, envir = .GlobalEnv)
   }
   
   if(variable_name == "connectivity" ) {
@@ -716,7 +839,8 @@ plot_circ_bar <- function(spatial_points,
     
     max_value <- ncol(data_w)
     
-    score <- base::round(mean(as.matrix(data_w)), 2)
+    score <- format(base::round(mean(as.matrix(data_w)), 2), nsmall = 2)
+    assign("connectivity_score", score, envir = .GlobalEnv)
     
     data_w$remainder <- apply(data_w, 1, function(x) ncol(data_w) - sum(x))
     
@@ -736,7 +860,7 @@ plot_circ_bar <- function(spatial_points,
   if(!stacked & variable_name == "coverage") {
     p <- p + geom_bar(data, mapping = aes(x = as.factor(id), y = max), stat = "identity", fill = "#e1e1e1")
     p <- p + geom_bar(data, mapping = aes(x = as.factor(id), y = value), stat = "identity", fill = colours)
-    }
+  }
   if(stacked) p <- p + geom_bar(position = "stack", stat = "identity")
   if(stacked) p <- p + scale_fill_manual(values = rev(colours))
   
@@ -764,10 +888,11 @@ plot_circ_bar <- function(spatial_points,
   if(variable_name == "richness") {
     p <- p + geom_text(data = data.frame(xx = 0.5,
                                          yy = -max(data$value),
-                                         label = paste0(shannon_evenness(data$value), "\nEVENNESS\nSCORE\n\n(", length(data$value), " SPECIES)")),
+                                         label = paste0(score, "\nEVENNESS\nSCORE\n(", length(data$value), " SPECIES)")),
                        mapping = aes(xx, yy, label = label),
                        size = 3,
-                       inherit.aes = FALSE)
+                       inherit.aes = FALSE,
+                       lineheight = 0.9)
   }
   
   if(variable_name == "phenology") {
@@ -778,12 +903,20 @@ plot_circ_bar <- function(spatial_points,
                        alpha = 0.6,
                        size = 2.5) +
       
-      geom_image(data = data.frame(xx = 0.5,
-                                   yy = -max(data$value),
-                                   image = "data/images/flower_icon.png"),
-                 mapping = aes(xx, yy, image = image),
-                 size = .2,
-                 inherit.aes = FALSE)
+      geom_text(data = data.frame(xx = 0.5,
+                                  yy = -max(data$value),
+                                  label = paste0(score, "\nPHENOLOGY\nSCORE")),
+                mapping = aes(xx, yy, label = label),
+                size = 3,
+                inherit.aes = FALSE,
+                lineheight = 0.9)
+    
+    # geom_image(data = data.frame(xx = 0.5,
+    #                              yy = -max(data$value),
+    #                              image = "data/images/flower_icon.png"),
+    #            mapping = aes(xx, yy, image = image),
+    #            size = .2,
+    #            inherit.aes = FALSE)
   }
   
   if(variable_name == "coverage" & !is.null(spatial_list)) {
@@ -792,14 +925,23 @@ plot_circ_bar <- function(spatial_points,
                        color = "black",
                        fontface = "bold",
                        alpha = 0.6,
-                       size = 2.5) +
+                       size = 2.5,
+                       lineheight = 0.9) +
       
-      geom_image(data = data.frame(xx = 1,
-                                   yy = -1.1,
-                                   image = "data/images/shrub_icon.png"),
-                 mapping = aes(xx, yy, image = image),
-                 size = .25,
-                 inherit.aes = FALSE)
+      geom_text(data = data.frame(xx = 1,
+                                  yy = -1.1,
+                                  label = paste0(score, "\nCOVERAGE\nSCORE")),
+                mapping = aes(xx, yy, label = label),
+                size = 3,
+                inherit.aes = FALSE,
+                lineheight = 0.9)
+    
+    # geom_image(data = data.frame(xx = 1,
+    #                              yy = -1.1,
+    #                              image = "data/images/shrub_icon.png"),
+    #            mapping = aes(xx, yy, image = image),
+    #            size = .25,
+    #            inherit.aes = FALSE)
   }
   
   if(variable_name == "connectivity") {
@@ -815,7 +957,8 @@ plot_circ_bar <- function(spatial_points,
                                   label = paste0(score, "\nCONNECTIVITY\nSCORE")),
                 mapping = aes(xx, yy, label = label),
                 size = 3,
-                inherit.aes = FALSE)
+                inherit.aes = FALSE,
+                lineheight = 0.9)
   }
   
   p
@@ -840,6 +983,9 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
            category = toupper(unique(spatial_points[ , variable_name])),
            values = sapply(unique(spatial_points[ , variable_name]), function(var) length(which(spatial_points[ , variable_name] == var)))
          ))
+  
+  score <- shannon_evenness(data$values)
+  assign(paste0(variable_name, "_score"), score, envir = .GlobalEnv)
   
   # Compute percentages
   data$fraction = data$values / sum(data$values)
@@ -866,7 +1012,15 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
     theme_void() +
     theme(legend.position = "none") +
     
-    geom_image(data = data.frame(xx = 0.8, yy = 0, image = image_path), mapping = aes(xx, yy, image = image), size = .3, inherit.aes = FALSE)
+    geom_text(data = data.frame(xx = 0.8,
+                                yy = 0,
+                                label = paste0(score, "\nEVENNESS\nSCORE")),
+              mapping = aes(xx, yy, label = label),
+              size = 3,
+              inherit.aes = FALSE,
+              lineheight = 0.9)
+  
+  # geom_image(data = data.frame(xx = 0.8, yy = 0, image = image_path), mapping = aes(xx, yy, image = image), size = .3, inherit.aes = FALSE)
 }
 
 # Plot proportion of categories as ticks on a ring
@@ -877,7 +1031,7 @@ plot_percent <- function(spatial_points,
                          colour,
                          label) {
   
-  if(variable_name == "patterning") {
+  if(variable_name == "distribution") {
     score <- analyse_spatial_patterning(spatial_points, boundary)
     zero_prop <- base::round((1 - score) * 100)
     one_prop <- base::round(score * 100)
@@ -910,7 +1064,14 @@ plot_percent <- function(spatial_points,
   data$ymin = c(0, head(data$ymax, n = -1))
   
   pr_palette <- c(rep(colour, one_prop),  rep("#e8e8e8", zero_prop))
-
+  
+  score <- format(base::round(one_prop / 100, digits = 2), nsmall = 2)
+  assign(paste0(variable_name, "_score"), score, envir = .GlobalEnv)
+  
+  label_text <- paste0(score, "\n", label, "\nSCORE")
+  
+  if(variable_name == "endemism") label_text <- paste0(label_text, "\n(", one_prop, "% NATIVE)")
+  
   # Make the plot
   ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 5, xmin = 1, fill = factor(category))) +
     geom_rect(color = "white", linewidth = 1) +
@@ -924,12 +1085,11 @@ plot_percent <- function(spatial_points,
     
     geom_text(data = data.frame(xx = 0,
                                 yy = -max(data$values) * 0.5,
-                                label = ifelse(variable_name == "patterning",
-                                               paste0(base::round(one_prop / 100, digits = 2), "\n", label),
-                                               paste0(one_prop, "%\n", label))),
+                                label = label_text),
               mapping = aes(xx, yy, label = label),
               size = 3,
-              inherit.aes = FALSE)
+              inherit.aes = FALSE,
+              lineheight = 0.9)
 }
 
 # Original function by Stefan Jünger
@@ -953,7 +1113,9 @@ shannon_evenness <- function(counts) {
   sp_props <- counts / sum(counts)
   sdi <- -sum(sp_props * log(sp_props))
   max_sdi <- log(length(counts)) 
-  signif(sdi / max_sdi, 2)
+  score <- signif(sdi / max_sdi, 2)
+  if(is.nan(score)) score <- 0
+  format(score, nsmall = 2)
 }
 
 # Rescale values to be between zero and one

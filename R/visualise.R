@@ -27,7 +27,8 @@ system('convert -delay 50 -dispose previous -loop 0 figs/images/sample_landscape
 create_interactive_score_sheet(spatial_points = home_ex_plant_points,
                                boundary = home_ex_site_boundary,
                                spatial_list = home_ex_years_1_30,
-                               path_directory = "figs/web/sample_landscape/")
+                               path_directory = "figs/web/sample_landscape/",
+                               title = "SAMPLE LANDSCAPE")
 
 ####################################################################
 
@@ -51,7 +52,8 @@ system('convert -delay 50 -dispose previous -loop 0 figs/images/torquay/park_tq_
 create_interactive_score_sheet(spatial_points = park_tq_plant_points,
                                boundary = park_tq_site_boundary,
                                spatial_list = park_tq_years_1_30,
-                               path_directory = "figs/web/torquay/")
+                               path_directory = "figs/web/torquay/",
+                               title = "TORQUAY GREENSPACE")
 
 ####################################################################
 
@@ -80,7 +82,8 @@ system('convert -delay 50 -dispose previous -loop 0 figs/images/averley/park_av_
 create_interactive_score_sheet(spatial_points = park_av_plant_points,
                                boundary = park_av_site_boundary,
                                spatial_list = park_av_years_1_30,
-                               path_directory = "figs/web/averley/")
+                               path_directory = "figs/web/averley/",
+                               title = "AVERLEY COMMUNITY PARK")
 
 ####################################################################
 
@@ -109,7 +112,8 @@ system('convert -delay 50 -dispose previous -loop 0 figs/images/booyeembara/park
 create_interactive_score_sheet(spatial_points = park_b_plant_points,
                                boundary = park_b_site_boundary,
                                spatial_list = park_b_years_1_30,
-                               path_directory = "figs/web/booyeembara/")
+                               path_directory = "figs/web/booyeembara/",
+                               title = "BOOYEEMBARA BUSHLAND")
 
 
 #####################################################################
