@@ -71,17 +71,39 @@ check_spatial_input <- function(point_locations, polygon_locations = NULL) {
 
 # Combine scorecard images into panels for comparison. Note, 'create_interactive_scorecard'
 # must be run first to access the images.
-combine_score_sheet_images <- function(metric, nrows, ncols, paths) {
+combine_score_sheet_images <- function(metric, nrows, ncols, paths, titles = NULL) {
   files <- paste0(paths, metric, ".png")
-  plots <- lapply(files, function(x) {
+  plot_list <- lapply(files, function(x) {
     img <- as.raster(readPNG(x))
     rasterGrob(img, interpolate = FALSE)
   })
+  
+  res_height <- dim(plot_list[[1]]$raster)[1] * nrows
+  res_width <- dim(plot_list[[1]]$raster)[2] * ncols
+  row_heights <- rep(1, nrows)
+  
+  if(!is.null(titles)) {
+    text_list <- lapply(titles, function(x) {
+      textGrob(x, gp = gpar(fontsize = 6, fontface = "bold"))
+    })
+    
+    plot_list <- c(text_list, plot_list)
+    
+    nrows <- nrows + 1
+    res_height <- res_height * 1.1
+    row_heights <- c(0.1, row_heights)
+  }
+  
   ggsave(paste0("figs/images/all_", metric, ".png"),
-         width = (400 * ncols) * 1.1,
-         height = 400 * nrows,
+         width = res_width,
+         height = res_height,
          units = "px",
-         marrangeGrob(grobs = plots, nrow = nrows, ncol = ncols, top = NULL))
+         arrangeGrob(grobs = plot_list,
+                     nrow = nrows,
+                     ncol = ncols,
+                     top =  NULL,
+                     heights = row_heights, 
+                     layout_matrix = matrix(seq_len(length(plot_list)), nrow = nrows, byrow = TRUE)))
 }
 
 
@@ -273,19 +295,19 @@ create_interactive_score_sheet <- function(spatial_points,
                                 description = c(
                                   "Density describes the interstitial space within the foliage. This is
 				primarily an aesthetic metric that is used by the designer, however, may
-				have implications for target species. Density categories should be
-				balanced across the site unless target species are identified - in
+				have implications for target species. All three density categories should be
+				represented and balanced across the site unless target species are identified - in
 				which case beneficial classes may be more dominantly represented.",
                                   "This plot represents the proportion of plants that will fall within
-				predetermined height categories at maturity. The predetermined
-				height categories cover off on many species' requirements and should be
-				fairly balanced across the site. In some cases, identified target
+				predetermined height categories at maturity. The predetermined four
+				height categories cover off on many species' requirements and should all
+				be represented and balanced across the site. In some cases, identified target
 				species may require particular classes to be more dominantly
 				represented.",
-                                  "Texture describes the roughness of the foliage. This is	primarily an
+                                  "Texture describes the roughness of the foliage. This is primarily an
 				aesthetic metric that is used by the designer, however, may
-				have implications for target species. Texture categories should be
-				balanced across the site unless target species are identified - in
+				have implications for target species. All three texture categories should be
+				represented and balanced across the site unless target species are identified - in
 				which case beneficial classes may be more dominantly represented.",
                                   "This plot reports the proportion of species that are native to the
 				country, not necessarily site, where the project will be realised. It is
@@ -796,6 +818,7 @@ plot_circ_bar <- function(spatial_points,
     )
     
     score <- shannon_evenness(data$value)
+    score <- format(base::round(score, digits = 2), nsmall = 2)
     assign("richness_score", score, envir = .GlobalEnv)
     
   }
@@ -811,7 +834,7 @@ plot_circ_bar <- function(spatial_points,
     
     data$value <- zero_to_one(data$value)
     
-    score <- format(base::round(sum(data$value > 0) / 12, 2), nsmall = 2)
+    score <- format(base::round(sum(data$value > 0) / 12, digits = 2), nsmall = 2)
     assign("phenology_score", score, envir = .GlobalEnv)
     
     img <- readPNG("data/images/flower_icon.png")
@@ -839,7 +862,7 @@ plot_circ_bar <- function(spatial_points,
     
     max_value <- ncol(data_w)
     
-    score <- format(base::round(mean(as.matrix(data_w)), 2), nsmall = 2)
+    score <- format(base::round(mean(as.matrix(data_w)), digits = 2), nsmall = 2)
     assign("connectivity_score", score, envir = .GlobalEnv)
     
     data_w$remainder <- apply(data_w, 1, function(x) ncol(data_w) - sum(x))
@@ -925,7 +948,7 @@ plot_circ_bar <- function(spatial_points,
                        color = "black",
                        fontface = "bold",
                        alpha = 0.6,
-                       size = 2.5,
+                       size = 2,
                        lineheight = 0.9) +
       
       geom_text(data = data.frame(xx = 1,
@@ -950,7 +973,7 @@ plot_circ_bar <- function(spatial_points,
                        color = "black",
                        fontface = "bold",
                        alpha = 0.6,
-                       size = 2.5) +
+                       size = 2) +
       
       geom_text(data = data.frame(xx = max_value,
                                   yy = -max_value * 1.1,
@@ -984,7 +1007,11 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
            values = sapply(unique(spatial_points[ , variable_name]), function(var) length(which(spatial_points[ , variable_name] == var)))
          ))
   
-  score <- shannon_evenness(data$values)
+  ifelse(variable_name == "size",
+         score <- shannon_evenness(data$values) * (length(unique(data$values)) / 4),
+         score <- shannon_evenness(data$values) * (length(unique(data$values)) / 3))
+  
+  score <- format(base::round(score, digits = 2), nsmall = 2)
   assign(paste0(variable_name, "_score"), score, envir = .GlobalEnv)
   
   # Compute percentages
@@ -1014,7 +1041,7 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
     
     geom_text(data = data.frame(xx = 0.8,
                                 yy = 0,
-                                label = paste0(score, "\nEVENNESS\nSCORE")),
+                                label = paste0(score, "\nVARIABILITY\nSCORE")),
               mapping = aes(xx, yy, label = label),
               size = 3,
               inherit.aes = FALSE,
@@ -1115,7 +1142,7 @@ shannon_evenness <- function(counts) {
   max_sdi <- log(length(counts)) 
   score <- signif(sdi / max_sdi, 2)
   if(is.nan(score)) score <- 0
-  format(score, nsmall = 2)
+  score
 }
 
 # Rescale values to be between zero and one

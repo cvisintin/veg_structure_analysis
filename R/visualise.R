@@ -53,7 +53,7 @@ create_interactive_score_sheet(spatial_points = park_tq_plant_points,
                                boundary = park_tq_site_boundary,
                                spatial_list = park_tq_years_1_30,
                                path_directory = "figs/web/torquay/",
-                               title = "TORQUAY GREENSPACE")
+                               title = "GREENSPACE")
 
 ####################################################################
 
@@ -83,7 +83,7 @@ create_interactive_score_sheet(spatial_points = park_av_plant_points,
                                boundary = park_av_site_boundary,
                                spatial_list = park_av_years_1_30,
                                path_directory = "figs/web/averley/",
-                               title = "AVERLEY COMMUNITY PARK")
+                               title = "NEIGHBOURHOOD PARK")
 
 ####################################################################
 
@@ -113,17 +113,18 @@ create_interactive_score_sheet(spatial_points = park_b_plant_points,
                                boundary = park_b_site_boundary,
                                spatial_list = park_b_years_1_30,
                                path_directory = "figs/web/booyeembara/",
-                               title = "BOOYEEMBARA BUSHLAND")
+                               title = "BUSHLAND")
 
 
 #####################################################################
 
-metrics <- c("connectivity", "coverage", "density", "endemism", "patterning", "phenology", "richness", "size", "texture")
+metrics <- c("distribution", "connectivity", "coverage", "density", "endemism", "phenology", "richness", "size", "texture")
 for (i in metrics) {
   combine_score_sheet_images(metric = i,
                              nrows = 1,
                              ncols = 3,
                              paths = c("figs/web/torquay/",
                                        "figs/web/averley/",
-                                       "figs/web/booyeembara/"))
+                                       "figs/web/booyeembara/"),
+                             titles = c("Greenspace", "Neighborhood Park", "Bushland"))
 }
