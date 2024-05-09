@@ -230,6 +230,7 @@ create_interactive_score_sheet <- function(spatial_points,
   print("Preparing species plot...")
   png(paste0(path_directory, "richness.png"), height = 400, width = 400, pointsize = 4, res = 150)
   print(plot_circ_bar(spatial_points = spatial_points,
+                      spatial_list = spatial_list,
                       variable_name = "richness",
                       colours = "#858383",
                       polar_rotation = 0.25))
@@ -817,7 +818,12 @@ plot_circ_bar <- function(spatial_points,
       value = sapply(unique(species), function(sp) length(which(species == sp)))
     )
     
-    score <- shannon_evenness(data$value)
+    no_species <- nrow(data)
+    
+    site_area <- sum(st_area(spatial_list[[1]][[1]]))
+    target_no_species <- (as.numeric(site_area) / 10000) * 100
+    
+    score <- pmin(shannon_evenness(data$value) * (no_species / target_no_species), 1)
     score <- format(base::round(score, digits = 2), nsmall = 2)
     assign("richness_score", score, envir = .GlobalEnv)
     
@@ -832,9 +838,10 @@ plot_circ_bar <- function(spatial_points,
       value = sapply(months, function(month) sum(grepl(month, spatial_points$phenology)))
     )
     
-    data$value <- zero_to_one(data$value)
+    #data$value <- zero_to_one(data$value)
     
-    score <- format(base::round(sum(data$value > 0) / 12, digits = 2), nsmall = 2)
+    score <- pmin(shannon_evenness(data$value) * (sum(data$value > 0) / 12), 1)
+    score <- format(base::round(score, digits = 2), nsmall = 2)
     assign("phenology_score", score, envir = .GlobalEnv)
     
     img <- readPNG("data/images/flower_icon.png")
@@ -911,7 +918,7 @@ plot_circ_bar <- function(spatial_points,
   if(variable_name == "richness") {
     p <- p + geom_text(data = data.frame(xx = 0.5,
                                          yy = -max(data$value),
-                                         label = paste0(score, "\nEVENNESS\nSCORE\n(", length(data$value), " SPECIES)")),
+                                         label = paste0(score, "\nRICHNESS\nSCORE\n(", length(data$value), " SPECIES)")),
                        mapping = aes(xx, yy, label = label),
                        size = 3,
                        inherit.aes = FALSE,
@@ -1041,7 +1048,7 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
     
     geom_text(data = data.frame(xx = 0.8,
                                 yy = 0,
-                                label = paste0(score, "\nVARIABILITY\nSCORE")),
+                                label = paste0(score, "\n", toupper(variable_name), "\nSCORE")),
               mapping = aes(xx, yy, label = label),
               size = 3,
               inherit.aes = FALSE,
