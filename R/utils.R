@@ -10,30 +10,30 @@ library(tidyr)
 library(viridis)
 library(spatstat)
 
-# Determine spatial patterning and assess whether there is uniform distribution or not
-analyse_spatial_patterning <- function(spatial_points, boundary) {
-  species <- unique(spatial_points$species)
-  n_species <- length(species)
-  scores <- rep(NA, n_species)
-  for (i in seq_len(n_species)) {
-    idx <- spatial_points$species == species[i]
-    ppp <- ppp(x = st_coordinates(spatial_points)[idx, 1],
-               y = st_coordinates(spatial_points)[idx, 2],
-               window = as.owin(st_bbox(boundary)))
-    scores[i] <- ifelse(ppp$n > 2,
-                        {K <- envelope(ppp, silent = TRUE, verbose = FALSE)
-                        auc_theo <- sum(diff(seq_len(length(K$theo))) * (head(K$theo, -1) + tail(K$theo, -1))) / 2
-                        auc_obs <- sum(diff(seq_len(length(K$obs))) * (head(K$obs, -1) + tail(K$obs, -1))) / 2
-                        auc_prop <- auc_theo / auc_obs
-                        if(auc_prop <= 1) auc_score <- auc_prop
-                        if(auc_prop > 1) auc_score <- 1 / auc_prop
-                        auc_score
-                        }, 0)
-  }
-  scores_idx <- which(scores > 0)
-  final_score <- mean(scores[scores_idx])
-  final_score
-}
+# # Determine spatial patterning and assess whether there is uniform distribution or not
+# analyse_spatial_patterning <- function(spatial_points, boundary) {
+#   species <- unique(spatial_points$species)
+#   n_species <- length(species)
+#   scores <- rep(NA, n_species)
+#   for (i in seq_len(n_species)) {
+#     idx <- spatial_points$species == species[i]
+#     ppp <- ppp(x = st_coordinates(spatial_points)[idx, 1],
+#                y = st_coordinates(spatial_points)[idx, 2],
+#                window = as.owin(st_bbox(boundary)))
+#     scores[i] <- ifelse(ppp$n > 2,
+#                         {K <- envelope(ppp, silent = TRUE, verbose = FALSE)
+#                         auc_theo <- sum(diff(seq_len(length(K$theo))) * (head(K$theo, -1) + tail(K$theo, -1))) / 2
+#                         auc_obs <- sum(diff(seq_len(length(K$obs))) * (head(K$obs, -1) + tail(K$obs, -1))) / 2
+#                         auc_prop <- auc_theo / auc_obs
+#                         if(auc_prop <= 1) auc_score <- auc_prop
+#                         if(auc_prop > 1) auc_score <- 1 / auc_prop
+#                         auc_score
+#                         }, 0)
+#   }
+#   scores_idx <- which(scores > 0)
+#   final_score <- mean(scores[scores_idx])
+#   final_score
+# }
 
 # Verify that the point and polygon spatial objects have the same properties and attributes
 check_spatial_input <- function(point_locations, polygon_locations = NULL) {
@@ -216,15 +216,15 @@ create_interactive_score_sheet <- function(spatial_points,
                      label = "ENDEMISM"))
   dev.off()
   
-  ### Distribution ###
-  print("Preparing distribution plot...")
-  png(paste0(path_directory, "distribution.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_percent(spatial_points = spatial_points,
-                     boundary = boundary,
-                     variable_name = "distribution",
-                     colour = "#a19a65",
-                     label = "DISTRIBUTION"))
-  dev.off()
+  # ### Distribution ###
+  # print("Preparing distribution plot...")
+  # png(paste0(path_directory, "distribution.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  # print(plot_percent(spatial_points = spatial_points,
+  #                    boundary = boundary,
+  #                    variable_name = "distribution",
+  #                    colour = "#a19a65",
+  #                    label = "DISTRIBUTION"))
+  # dev.off()
   
   ### Species richness ###
   print("Preparing species plot...")
@@ -291,7 +291,7 @@ create_interactive_score_sheet <- function(spatial_points,
       file = paste0(path_directory, "index.html"))
   
   html_figures_df <- data.frame(name = c("density", "size", "texture",
-                                         "endemism", "richness", "distribution",
+                                         "endemism", NA, "richness", # "distribution",
                                          "coverage", "phenology", "connectivity"),
                                 description = c(
                                   "Density describes the interstitial space within the foliage. This is
@@ -316,6 +316,13 @@ create_interactive_score_sheet <- function(spatial_points,
 				as other native species will have evolved to best utilise them. In some
 				cases, non-aggressive exotic plants that benefit a target species or
 				to create a novel ecosystem may be selected.",
+                                  NA,
+                                  #                                   "This plot reports an overall score that indicates how well different
+                                  # 				species are distributed across a site. A low value (approaching zero)
+                                  # 				indicates that species are clustered or clumped and unevenly distributed
+                                  # 				around a site. A high value (approaching one) suggests that the species
+                                  # 				are more randomly and evenly distributed - and closer to what we may
+                                  # 				encounter in an undistrurbed landscape at a smaller scale.",
                                   "This plot illustrates the overall diversity and balance of plant species
 				used on site. The evenness score compares the total numbers of each
 				species (also depicted in the size of the gray bars) - a score close to
@@ -324,12 +331,6 @@ create_interactive_score_sheet <- function(spatial_points,
 				examine the number of gray bars as this represents the total number of
 				different species on site and should be as large as possible to
 				support biodiversity.",
-                                  "This plot reports an overall score that indicates how well different
-				species are distributed across a site. A low value (approaching zero)
-				indicates that species are clustered or clumped and unevenly distributed
-				around a site. A high value (approaching one) suggests that the species
-				are more randomly and evenly distributed - and closer to what we may
-				encounter in an undistrurbed landscape at a smaller scale.",
                                   "This plot indicates the relative proportion of vegetation at a one meter
 				cut height across the site, and how it changes through time. It is a
 				coarse proxy for measuring the presence of understory vegetation on site.
@@ -355,23 +356,32 @@ create_interactive_score_sheet <- function(spatial_points,
 				of the bars represent the hypothetical maximums."))
   
   for (i in 1:nrow(html_figures_df)) {
-    name <- html_figures_df$name[i]
-    Name <- paste0(toupper(substr(name, 1, 1)), substr(name, 2, nchar(name)))
-    cat(paste0("<div class=\"image\">
+    if(!is.na(html_figures_df$name[i])) {
+      name <- html_figures_df$name[i]
+      Name <- paste0(toupper(substr(name, 1, 1)), substr(name, 2, nchar(name)))
+      cat(paste0("<div class=\"image\">
 		  <img class=\"image__img\" src=\"", name,
-               ".png\" alt=\"", Name, "\">
+                 ".png\" alt=\"", Name, "\">
 		  <div class=\"image__overlay\">
 			<div class=\"image__title\">", Name, "</div>
 			<p class=\"image__description\">",
-               html_figures_df$description[i],
-               "</p>
+                 html_figures_df$description[i],
+                 "</p>
 		  </div>
 	  </div>
              "),
-        file = paste0(path_directory, "index.html"),
-        append = TRUE)
+          file = paste0(path_directory, "index.html"),
+          append = TRUE)
+    }else{
+      cat(paste0("<div>
+		  <div>
+			<p></p>
+		  </div>
+	  </div>"),
+          file = paste0(path_directory, "index.html"),
+          append = TRUE)
+    }
   }
-  
   cat("  </div> 
 </body>
 </html>
@@ -497,7 +507,7 @@ convert_combine <- function(point_locations, # Spatial geometry and attributes o
     points <- st_intersection(grid, polygon_locations$geometry[i])
     n_points <- length(points)
     points <- points[sample(seq_len(n_points), pmax(1, floor(n_points * polygon_locations$coverage[i] / 100)))]
-    st_sf(data, geometry = points)
+    st_sf(as.data.frame(data), geometry = points)
   })
   
   new_plant_points <- do.call(rbind, point_list)
@@ -1065,11 +1075,11 @@ plot_percent <- function(spatial_points,
                          colour,
                          label) {
   
-  if(variable_name == "distribution") {
-    score <- analyse_spatial_patterning(spatial_points, boundary)
-    zero_prop <- base::round((1 - score) * 100)
-    one_prop <- base::round(score * 100)
-  }
+  # if(variable_name == "distribution") {
+  #   score <- analyse_spatial_patterning(spatial_points, boundary)
+  #   zero_prop <- base::round((1 - score) * 100)
+  #   one_prop <- base::round(score * 100)
+  # }
   
   if(variable_name == "endemism") {
     st_geometry(spatial_points) <- NULL
