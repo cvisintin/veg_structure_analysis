@@ -30,6 +30,7 @@ create_interactive_score_sheet(spatial_points = home_ex_plant_points,
                                path_directory = "figs/web/sample_landscape/",
                                title = "SAMPLE LANDSCAPE")
 
+
 ####################################################################
 
 # Load background spatial data
