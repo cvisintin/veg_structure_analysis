@@ -269,9 +269,9 @@ create_interactive_score_sheet <- function(spatial_points,
   
   print("Calculating total score.")
   score_names <- ls(pattern = "_score$", envir = .GlobalEnv)
-  total_score <- format(base::round(mean(sapply(score_names, function(x) as.numeric(get(x)))), 2), nsmall = 2)
+  total_score <- base::round(mean(sapply(score_names, function(x) as.numeric(get(x)))))
   png(paste0(path_directory, "total.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  dial_plot(value = as.numeric(total_score) * 100)
+  dial_plot(value = total_score)
   dev.off()
   
   print("Creating score sheet.")
@@ -317,7 +317,7 @@ create_interactive_score_sheet <- function(spatial_points,
 				have implications for target species. All three density categories should be
 				represented and balanced across the site unless target species are identified - in
 				which case beneficial classes may be more dominantly represented.",
-                                  "This plot represents the proportion of plants that will fall within
+                                  "The proportion of plants that will fall within
 				predetermined height categories at maturity. The predetermined four
 				height categories cover off on many species' requirements and should all
 				be represented and balanced across the site. In some cases, identified target
@@ -328,7 +328,7 @@ create_interactive_score_sheet <- function(spatial_points,
 				have implications for target species. All three texture categories should be
 				represented and balanced across the site unless target species are identified - in
 				which case beneficial classes may be more dominantly represented.",
-                                  "This plot reports the proportion of species that are native to the
+                                  "The proportion of species that are native to the
 				country, not necessarily site, where the project will be realised. It is
 				normally good practice to maximise the amount of native/local vegetation
 				as other native species will have evolved to best utilise them. In some
@@ -342,15 +342,15 @@ create_interactive_score_sheet <- function(spatial_points,
                                   # 				around a site. A high value (approaching one) suggests that the species
                                   # 				are more randomly and evenly distributed - and closer to what we may
                                   # 				encounter in an undisturbed landscape at a smaller scale.",
-                                  "This plot illustrates the overall diversity and balance of plant species
+                                  "The overall diversity and balance of plant species
 				used on site. The evenness score compares the total numbers of each
 				species (also depicted in the size of the gray bars) - a score close to
-				zero indicates the dominance of a few species; a score of one suggests
+				zero indicates the dominance of a few species; a score of one-hundred suggests
 				a more balanced representation of species. It is also important to
 				examine the number of gray bars as this represents the total number of
 				different species on site and should be as large as possible to
 				support biodiversity.",
-                                  "This plot indicates the relative proportion of vegetation at a one meter
+                                  "The relative proportion of vegetation at a one meter
 				cut height across the site, and how it changes through time. It is a
 				coarse proxy for measuring the presence of understory vegetation on site.
 				Each bar represents a year in the specified growth simulation. It is
@@ -364,7 +364,7 @@ create_interactive_score_sheet <- function(spatial_points,
 				species	throughout the year, these bars should be relatively balanced.
 				At a minimum, all months should have some flowering plants.",
                                   "Connectivity is a measure of how much contiguous vegetation exists on
-				the site. A connectivity value close to one indicates a high amount of
+				the site. A connectivity value close to one-hundred indicates a high amount of
 				contiguous or continuous vegetation throughout the site; a value closer
 				to zero suggests very isolated patches of vegetation. Note, this measure
 				is a composite value based on the scores obtained at five heights - by
@@ -537,12 +537,12 @@ convert_combine <- function(point_locations, # Spatial geometry and attributes o
 # Create a dial plot
 # Original code by Gaston Sanchez   http://www.r-bloggers.com/gauge-chart-in-r/
 dial_plot <- function(label = "", value = 50, dial.radius = 1,
-                      value.cex = 4, value.color = "black",
+                      value.cex = 4, value.color = "#a6372d",
                       label.cex = 1, label.color = "black",
                       gage.bg.color = "white",
                       needle.color = "black", needle.center.color = "white",
                       needle.center.cex = 1, dial.digits.color = "black",
-                      heavy.border.color = "gray80", thin.border.color = "black",
+                      heavy.border.color = "#a6372d", thin.border.color = "black",
                       minor.ticks.color = "black", major.ticks.color = "black")
 {
   
@@ -615,9 +615,10 @@ dial_plot <- function(label = "", value = 50, dial.radius = 1,
   # Add dial labels
   text(0, (dial.radius * -0.65), value, cex = value.cex, col = value.color)
   label_cir = circle(center = c(0, (dial.radius * -0.65)), radius = dial.radius * 0.22, npoints = 100)
-  lines(label_cir$x, label_cir$y, col = thin.border.color, lwd = 1)
+  lines(label_cir$x, label_cir$y, col = "#a6372d", lwd = 1)
   # add label of variable
   text(0, (dial.radius * 0.43), label, cex = label.cex, col = label.color)
+  text(0, (dial.radius * -0.30), "TOTAL SCORE", cex = label.cex * 1.2, col = label.color)
   
   # add needle
   # angle of needle pointing to the specified value
@@ -965,7 +966,7 @@ plot_circ_bar <- function(spatial_points,
     target_no_species <- (as.numeric(site_area) / 10000) * 100
     
     score <- pmin(shannon_evenness(data$value) * (no_species / target_no_species), 1)
-    score <- format(base::round(score, digits = 2), nsmall = 2)
+    score <- base::round(score * 100)
     assign("richness_score", score, envir = .GlobalEnv)
     
   }
@@ -982,7 +983,7 @@ plot_circ_bar <- function(spatial_points,
     #data$value <- zero_to_one(data$value)
     
     score <- pmin(shannon_evenness(data$value) * (sum(data$value > 0) / 12), 1)
-    score <- format(base::round(score, digits = 2), nsmall = 2)
+    score <- base::round(score * 100)
     assign("phenology_score", score, envir = .GlobalEnv)
     
     img <- readPNG("data/images/flower_icon.png")
@@ -998,7 +999,7 @@ plot_circ_bar <- function(spatial_points,
       max = 1
     )
     
-    score <- format(base::round(mean(data$value), 2), nsmall = 2)
+    score <- base::round(mean(data$value) * 100)
     assign("coverage_score", score, envir = .GlobalEnv)
   }
   
@@ -1010,7 +1011,7 @@ plot_circ_bar <- function(spatial_points,
     
     max_value <- ncol(data_w)
     
-    score <- format(base::round(mean(as.matrix(data_w)), digits = 2), nsmall = 2)
+    score <- base::round(mean(as.matrix(data_w)) * 100)
     assign("connectivity_score", score, envir = .GlobalEnv)
     
     data_w$remainder <- apply(data_w, 1, function(x) ncol(data_w) - sum(x))
@@ -1059,7 +1060,7 @@ plot_circ_bar <- function(spatial_points,
   if(variable_name == "richness") {
     p <- p + geom_text(data = data.frame(xx = 0.5,
                                          yy = -max(data$value),
-                                         label = paste0(score, "\nRICHNESS\nSCORE\n(", length(data$value), " SPECIES)")),
+                                         label = paste0(score, "/100\nRICHNESS\nSCORE\n(", length(data$value), " SPECIES)")),
                        mapping = aes(xx, yy, label = label),
                        size = 3,
                        inherit.aes = FALSE,
@@ -1076,7 +1077,7 @@ plot_circ_bar <- function(spatial_points,
       
       geom_text(data = data.frame(xx = 0.5,
                                   yy = -max(data$value),
-                                  label = paste0(score, "\nPHENOLOGY\nSCORE")),
+                                  label = paste0(score, "/100\nPHENOLOGY\nSCORE")),
                 mapping = aes(xx, yy, label = label),
                 size = 3,
                 inherit.aes = FALSE,
@@ -1101,7 +1102,7 @@ plot_circ_bar <- function(spatial_points,
       
       geom_text(data = data.frame(xx = 1,
                                   yy = -1.1,
-                                  label = paste0(score, "\nCOVERAGE\nSCORE")),
+                                  label = paste0(score, "/100\nCOVERAGE\nSCORE")),
                 mapping = aes(xx, yy, label = label),
                 size = 3,
                 inherit.aes = FALSE,
@@ -1125,7 +1126,7 @@ plot_circ_bar <- function(spatial_points,
       
       geom_text(data = data.frame(xx = max_value,
                                   yy = -max_value * 1.1,
-                                  label = paste0(score, "\nCONNECTIVITY\nSCORE")),
+                                  label = paste0(score, "/100\nCONNECTIVITY\nSCORE")),
                 mapping = aes(xx, yy, label = label),
                 size = 3,
                 inherit.aes = FALSE,
@@ -1159,7 +1160,7 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
          score <- shannon_evenness(data$values) * (length(unique(data$values)) / 4),
          score <- shannon_evenness(data$values) * (length(unique(data$values)) / 3))
   
-  score <- format(base::round(score, digits = 2), nsmall = 2)
+  score <- base::round(score * 100)
   assign(paste0(variable_name, "_score"), score, envir = .GlobalEnv)
   
   # Compute percentages
@@ -1189,7 +1190,7 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
     
     geom_text(data = data.frame(xx = 0.8,
                                 yy = 0,
-                                label = paste0(score, "\n", toupper(variable_name), "\nSCORE")),
+                                label = paste0(score, "/100\n", toupper(variable_name), "\nSCORE")),
               mapping = aes(xx, yy, label = label),
               size = 3,
               inherit.aes = FALSE,
@@ -1240,10 +1241,10 @@ plot_percent <- function(spatial_points,
   
   pr_palette <- c(rep(colour, one_prop),  rep("#e8e8e8", zero_prop))
   
-  score <- format(base::round(one_prop / 100, digits = 2), nsmall = 2)
+  score <- base::round(one_prop, digits = 0)
   assign(paste0(variable_name, "_score"), score, envir = .GlobalEnv)
   
-  label_text <- paste0(score, "\n", label, "\nSCORE")
+  label_text <- paste0(score, "/100\n", label, "\nSCORE")
   
   if(variable_name == "endemism") label_text <- paste0(label_text, "\n(", one_prop, "% NATIVE)")
   
