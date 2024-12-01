@@ -233,7 +233,7 @@ create_interactive_score_sheet <- function(spatial_points,
   print(plot_circ_bar(spatial_points = spatial_points,
                       spatial_list = spatial_list,
                       variable_name = "richness",
-                      colours = "#858383",
+                      colours = "#a6976d",
                       polar_rotation = 0.25))
   dev.off()
   
@@ -537,12 +537,12 @@ convert_combine <- function(point_locations, # Spatial geometry and attributes o
 # Create a dial plot
 # Original code by Gaston Sanchez   http://www.r-bloggers.com/gauge-chart-in-r/
 dial_plot <- function(label = "", value = 50, dial.radius = 1,
-                      value.cex = 4, value.color = "#a6372d",
+                      value.cex = 4, value.color = "black",
                       label.cex = 1, label.color = "black",
                       gage.bg.color = "white",
                       needle.color = "black", needle.center.color = "white",
                       needle.center.cex = 1, dial.digits.color = "black",
-                      heavy.border.color = "#a6372d", thin.border.color = "black",
+                      heavy.border.color = "gray40", thin.border.color = "black",
                       minor.ticks.color = "black", major.ticks.color = "black")
 {
   
@@ -615,10 +615,10 @@ dial_plot <- function(label = "", value = 50, dial.radius = 1,
   # Add dial labels
   text(0, (dial.radius * -0.65), value, cex = value.cex, col = value.color)
   label_cir = circle(center = c(0, (dial.radius * -0.65)), radius = dial.radius * 0.22, npoints = 100)
-  lines(label_cir$x, label_cir$y, col = "#a6372d", lwd = 1)
+  lines(label_cir$x, label_cir$y, col = "black", lwd = 1)
   # add label of variable
   text(0, (dial.radius * 0.43), label, cex = label.cex, col = label.color)
-  text(0, (dial.radius * -0.30), "TOTAL SCORE", cex = label.cex * 1.2, col = label.color)
+  text(0, (dial.radius * -0.30), "TOTAL SCORE", cex = label.cex * 1.6, col = label.color)
   
   # add needle
   # angle of needle pointing to the specified value
