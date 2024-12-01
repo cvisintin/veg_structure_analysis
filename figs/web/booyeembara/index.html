@@ -8,7 +8,6 @@
 	<link rel="stylesheet" href="main.css">
 </head>
 <body>
-   <center><h1>BUSHLAND - Overall score: 0.62</h1></center>
    <div class="grid-container">
              <div class="image">
 		  <img class="image__img" src="density.png" alt="Density">
@@ -25,7 +24,7 @@
 		  <img class="image__img" src="size.png" alt="Size">
 		  <div class="image__overlay">
 			<div class="image__title">Size</div>
-			<p class="image__description">This plot represents the proportion of plants that will fall within
+			<p class="image__description">The proportion of plants that will fall within
 				predetermined height categories at maturity. The predetermined four
 				height categories cover off on many species' requirements and should all
 				be represented and balanced across the site. In some cases, identified target
@@ -48,7 +47,7 @@
 		  <img class="image__img" src="endemism.png" alt="Endemism">
 		  <div class="image__overlay">
 			<div class="image__title">Endemism</div>
-			<p class="image__description">This plot reports the proportion of species that are native to the
+			<p class="image__description">The proportion of species that are native to the
 				country, not necessarily site, where the project will be realised. It is
 				normally good practice to maximise the amount of native/local vegetation
 				as other native species will have evolved to best utilise them. In some
@@ -57,13 +56,21 @@
 		  </div>
 	  </div>
              <div class="image">
+		  <img class="image__img" src="total.png" alt="Total">
+		  <div class="image__overlay">
+			<div class="image__title">Total</div>
+			<p class="image__description">This is the overall site score based on an unweighted average of 
+                                  all eight individual scores. Note that this score is out of 100 possible points</p>
+		  </div>
+	  </div>
+             <div class="image">
 		  <img class="image__img" src="richness.png" alt="Richness">
 		  <div class="image__overlay">
 			<div class="image__title">Richness</div>
-			<p class="image__description">This plot illustrates the overall diversity and balance of plant species
+			<p class="image__description">The overall diversity and balance of plant species
 				used on site. The evenness score compares the total numbers of each
 				species (also depicted in the size of the gray bars) - a score close to
-				zero indicates the dominance of a few species; a score of one suggests
+				zero indicates the dominance of a few species; a score of one-hundred suggests
 				a more balanced representation of species. It is also important to
 				examine the number of gray bars as this represents the total number of
 				different species on site and should be as large as possible to
@@ -71,22 +78,10 @@
 		  </div>
 	  </div>
              <div class="image">
-		  <img class="image__img" src="distribution.png" alt="Distribution">
-		  <div class="image__overlay">
-			<div class="image__title">Distribution</div>
-			<p class="image__description">This plot reports an overall score that indicates how well different
-				species are distributed across a site. A low value (approaching zero)
-				indicates that species are clustered or clumped and unevenly distributed
-				around a site. A high value (approaching one) suggests that the species
-				are more randomly and evenly distributed - and closer to what we may
-				encounter in an undistrurbed landscape at a smaller scale.</p>
-		  </div>
-	  </div>
-             <div class="image">
 		  <img class="image__img" src="coverage.png" alt="Coverage">
 		  <div class="image__overlay">
 			<div class="image__title">Coverage</div>
-			<p class="image__description">This plot indicates the relative proportion of vegetation at a one meter
+			<p class="image__description">The relative proportion of vegetation at a one meter
 				cut height across the site, and how it changes through time. It is a
 				coarse proxy for measuring the presence of understory vegetation on site.
 				Each bar represents a year in the specified growth simulation. It is
@@ -112,7 +107,7 @@
 		  <div class="image__overlay">
 			<div class="image__title">Connectivity</div>
 			<p class="image__description">Connectivity is a measure of how much contiguous vegetation exists on
-				the site. A connectivity value close to one indicates a high amount of
+				the site. A connectivity value close to one-hundred indicates a high amount of
 				contiguous or continuous vegetation throughout the site; a value closer
 				to zero suggests very isolated patches of vegetation. Note, this measure
 				is a composite value based on the scores obtained at five heights - by
