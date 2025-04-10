@@ -11,7 +11,7 @@ home_ex_site_boundary <- read_sf("data/gis/sample_landscape/Site_Boundary_Home.s
 home_ex_plant_points <- convert_combine(point_locations = home_ex_plant_points,
                                         polygon_locations = home_ex_planting_polygons)
 
-# Load grids file
+# Load spatial grids file
 load(file = "output/sample_landscape/home_ex_years_1_30")
 
 # Create export for visualisation
@@ -23,13 +23,18 @@ create_images(home_ex_years_1_30, path = "figs/images/sample_landscape/", filena
 # Animate spatial outputs
 system('convert -delay 50 -dispose previous -loop 0 figs/images/sample_landscape/home_ex_veg* figs/animations/home_ex_veg_growth.gif')
 
+# Load results file
+load(file = "output/sample_landscape/home_ex_results")
+
 # Create score sheet
-create_interactive_score_sheet(spatial_points = home_ex_plant_points,
-                               boundary = home_ex_site_boundary,
-                               spatial_list = home_ex_years_1_30,
+create_interactive_score_sheet(analysis_results = home_ex_results,
                                path_directory = "figs/web/sample_landscape/",
                                title = "SAMPLE LANDSCAPE")
 
+# Plot changes in coverage and connectivity over time
+png("figs/images/sample_landscape/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
+plot_temporal_change(home_ex_results)
+dev.off()
 
 ####################################################################
 

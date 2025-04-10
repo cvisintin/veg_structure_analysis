@@ -15,7 +15,7 @@ library(echarts4r)
 analyse_spatial_data <- function(spatial_points, spatial_list) {
   
   years <- names(spatial_list)
-  n_year_groups <- length(spatial_list)
+  n_years <- length(spatial_list)
   
   # Extract unique heights from file list and convert to numeric and meter units
   heights <- names(spatial_list[[1]])
@@ -111,7 +111,7 @@ analyse_spatial_data <- function(spatial_points, spatial_list) {
   
   
   output <- list()
-  for (i in seq_len(n_year_groups)) {
+  for (i in seq_len(n_years)) {
     
     spatial_year <- spatial_list[[i]]
     one_meter_id <- which(grepl("0100", names(spatial_year)))
@@ -229,13 +229,13 @@ create_images <- function(spatial_list, path, filename) {
   
   # Extract unique years from file list
   years <- names(spatial_list)
-  n_year_groups <- length(years)
+  n_years <- length(years)
   
   # Extract unique heights from file list and convert to numeric and meter units
   cut_heights <- names(spatial_list[[1]])
   cut_heights <- as.numeric(substr(cut_heights, (nchar(cut_heights) + 1) - 4, nchar(cut_heights))) / 100
   
-  sapply(seq_len(n_year_groups), function(j) {
+  sapply(seq_len(n_years), function(j) {
     
     spatial_year <- spatial_list[[j]]
     
@@ -289,16 +289,14 @@ create_images <- function(spatial_list, path, filename) {
 }
 
 # Create a web-based, interactive score sheet to assess the outcome of a landscape design 
-create_interactive_score_sheet <- function(spatial_points,
-                                           boundary = NULL,
-                                           spatial_list = NULL,
+create_interactive_score_sheet <- function(analysis_results,
                                            path_directory,
                                            title) {
   
   ### Density ###
   print("Preparing density plot...")
   png(paste0(path_directory, "density.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_classes(spatial_points = spatial_points,
+  print(plot_classes(analysis_results = analysis_results,
                      variable_name = "density",
                      colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
                      image_path = "data/images/leaves_icon.png"))
@@ -307,7 +305,7 @@ create_interactive_score_sheet <- function(spatial_points,
   ### Size ###
   print("Preparing sizes plot...")
   png(paste0(path_directory, "size.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_classes(spatial_points = spatial_points,
+  print(plot_classes(analysis_results = analysis_results,
                      variable_name = "size",
                      colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
                      image_path = "data/images/vegetation_icon.png"))
@@ -316,7 +314,7 @@ create_interactive_score_sheet <- function(spatial_points,
   ### Texture ###
   print("Preparing texture plot...")
   png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_classes(spatial_points = spatial_points,
+  print(plot_classes(analysis_results = analysis_results,
                      variable_name = "texture",
                      colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
                      image_path = "data/images/texture_icon.png"))
@@ -325,7 +323,7 @@ create_interactive_score_sheet <- function(spatial_points,
   ### Endemism ###
   print("Preparing endemism plot...")
   png(paste0(path_directory, "endemism.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_percent(spatial_points = spatial_points,
+  print(plot_percent(analysis_results = analysis_results,
                      variable_name = "endemism",
                      target_value = "native",
                      colour = "#a072a6",
@@ -345,8 +343,7 @@ create_interactive_score_sheet <- function(spatial_points,
   ### Species richness ###
   print("Preparing species plot...")
   png(paste0(path_directory, "richness.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_circ_bar(spatial_points = spatial_points,
-                      spatial_list = spatial_list,
+  print(plot_circ_bar(analysis_results = analysis_results,
                       variable_name = "richness",
                       colours = "#a6976d",
                       polar_rotation = 0.25))
@@ -355,32 +352,27 @@ create_interactive_score_sheet <- function(spatial_points,
   ### Phenology ###
   print("Preparing phenology plot...")
   png(paste0(path_directory, "phenology.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_circ_bar(spatial_points = spatial_points,
+  print(plot_circ_bar(analysis_results = analysis_results,
                       variable_name = "phenology",
                       colours = "#b0d4d6",
                       polar_rotation = 0.25))
   dev.off()
   
-  if(!is.null(spatial_list)) {
-    ### Coverage at 1m ###
-    print("Preparing coverage plot...")
-    png(paste0(path_directory, "coverage.png"), height = 400, width = 400, pointsize = 4, res = 150)
-    print(plot_circ_bar(spatial_points = spatial_points,
-                        spatial_list = spatial_list,
-                        variable_name = "coverage",
-                        colours = "#c9837d"))
-    dev.off()
-    
-    ### Connectivity ###
-    print("Preparing connectivity plot...")
-    png(paste0(path_directory, "connectivity.png"), height = 400, width = 400, pointsize = 4, res = 150)
-    print(plot_circ_bar(spatial_points = spatial_points,
-                        spatial_list = spatial_list,
-                        #obstructions = obstructions,
-                        variable_name = "connectivity",
-                        stacked = TRUE))
-    dev.off()
-  }
+  ### Coverage at 1m ###
+  print("Preparing coverage plot...")
+  png(paste0(path_directory, "coverage.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  print(plot_circ_bar(analysis_results = analysis_results,
+                      variable_name = "coverage",
+                      colours = "#c9837d"))
+  dev.off()
+  
+  ### Connectivity ###
+  print("Preparing connectivity plot...")
+  png(paste0(path_directory, "connectivity.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  print(plot_circ_bar(analysis_results = analysis_results,
+                      variable_name = "connectivity",
+                      stacked = TRUE))
+  dev.off()
   
   print("Calculating total score.")
   score_names <- ls(pattern = "_score$", envir = .GlobalEnv)
@@ -767,7 +759,7 @@ dial_plot <- function(label = "", value = 50, dial.radius = 1,
 estimate_connectivity <- function(spatial_list, threshold = 0.3) {
   # Extract unique years from file list
   years <- names(spatial_list)
-  n_year_groups <- length(years)
+  n_years <- length(years)
   
   # Extract unique heights from file list and convert to numeric and meter units
   heights <- names(spatial_list[[1]])
@@ -793,10 +785,10 @@ estimate_connectivity <- function(spatial_list, threshold = 0.3) {
     ids <- setdiff(ids, p)
   })
   
-  scores_df <- data.frame(matrix(NA, nrow = n_year_groups, ncol = n_heights))
+  scores_df <- data.frame(matrix(NA, nrow = n_years, ncol = n_heights))
   colnames(scores_df) <- names(spatial_list[[1]])
   
-  for (i in seq_len(n_year_groups)) {
+  for (i in seq_len(n_years)) {
     
     spatial_year <- spatial_list[[i]]
     
@@ -832,13 +824,13 @@ export_image_set <- function(spatial_list, path, filename) {
   
   # Extract unique years from file list
   years <- names(spatial_list)
-  n_year_groups <- length(years)
+  n_years <- length(years)
   
   # Extract unique heights from file list and convert to numeric and meter units
   cut_heights <- names(spatial_list[[1]])
   cut_heights <- as.numeric(substr(cut_heights, (nchar(cut_heights) + 1) - 4, nchar(cut_heights))) / 100
   
-  plot_set <- sapply(seq_len(n_year_groups), function(j) {
+  plot_set <- sapply(seq_len(n_years), function(j) {
     print(paste0("Processing year ", j))
     
     spatial_year <- spatial_list[[j]]
@@ -888,31 +880,6 @@ export_image_set <- function(spatial_list, path, filename) {
   
   save(plot_set, file = paste0(path, filename))
   
-}
-
-# Extract the proportion coverage of vegetation per grid cell from spatial data at 1 meter height
-extract_1m_coverage <- function(spatial_list) {
-  # Extract unique years from file list
-  years <- names(spatial_list)
-  n_year_groups <- length(years)
-  
-  # Extract unique heights from file list and convert to numeric and meter units
-  heights <- names(spatial_list[[1]])
-  heights <- as.numeric(substr(heights, (nchar(heights) + 1) - 4, nchar(heights))) / 100
-  
-  sapply(seq_len(n_year_groups), function(j) {
-    
-    spatial_year <- spatial_list[[j]]
-    
-    idx <- which(grepl("0100", names(spatial_year)))
-    
-    grid <- spatial_year[[idx]]
-    
-    grid$prop_ol[is.na(grid$prop_ol)] <- 0
-    
-    sum(grid$prop_ol) / length(grid$prop_ol)
-    
-  })
 }
 
 # Build the vegetation structure over time and horizontally cut at specified heights
@@ -1059,81 +1026,54 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
 }
 
 # Plot multidimensional data as stacked bars in a radial formation
-plot_circ_bar <- function(spatial_points,
-                          spatial_list = NULL,
-                          #obstructions = NULL,
+plot_circ_bar <- function(analysis_results,
                           variable_name,
                           colours = NULL,
                           polar_rotation = NULL,
                           stacked = FALSE) {
   
+  n_years <- length(analysis_results)
+  
   if(variable_name == "richness") {
-    species <- sub("(\\w+\\s+\\w+).*", "\\1", spatial_points$species)
-    
-    data <- data.frame(
-      id = factor(seq(1, length(unique(species)), 1)),
-      value = sapply(unique(species), function(sp) length(which(species == sp)))
-    )
-    
-    no_species <- nrow(data)
-    
-    site_area <- sum(st_area(spatial_list[[1]][[1]]))
-    target_no_species <- (as.numeric(site_area) / 10000) * 100
-    
-    score <- pmin(shannon_evenness(data$value) * (no_species / target_no_species), 1)
-    score <- base::round(score * 100)
+    data <- analysis_results[[1]][[5]]
+    score <- analysis_results[[1]][[13]]
     assign("richness_score", score, envir = .GlobalEnv)
     
   }
   
   if(variable_name == "phenology") {
-    months <- c("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-    n_months <- length(months)
-    
-    data <- data.frame(
-      id = factor(seq_len(n_months)),
-      value = sapply(months, function(month) sum(grepl(month, spatial_points$phenology)))
-    )
-    
-    #data$value <- zero_to_one(data$value)
-    
-    score <- pmin(shannon_evenness(data$value) * (sum(data$value > 0) / 12), 1)
-    score <- base::round(score * 100)
+    data <- analysis_results[[1]][[6]]
+    score <- analysis_results[[1]][[14]]
     assign("phenology_score", score, envir = .GlobalEnv)
     
     img <- readPNG("data/images/flower_icon.png")
     g <- rasterGrob(img, interpolate = TRUE)
   }
   
-  if(variable_name == "coverage" & !is.null(spatial_list)) {
-    n_year_groups <- length(spatial_list)
-    
+  if(variable_name == "coverage") {
     data <- data.frame(
-      id = factor(seq_len(n_year_groups)),
-      value = extract_1m_coverage(spatial_list),
-      max = 1
-    )
-    
-    score <- base::round(mean(data$value) * 100)
+      id = factor(seq_len(n_years)),
+      value = sapply(seq_len(n_years), function(i) analysis_results[[i]][[7]]),
+      max = 1)
+    score <- base::round(mean(sapply(n_years, function(i) analysis_results[[i]][[15]])))
     assign("coverage_score", score, envir = .GlobalEnv)
   }
   
   if(variable_name == "connectivity" ) {
-    n_year_groups <- length(spatial_list)
-    
-    data_w <- estimate_connectivity(spatial_list)
-    
+    data_w <- as.data.frame(do.call("rbind",
+                                    lapply(seq_len(n_years),
+                                           function(i) analysis_results[[i]][[8]])))
     
     max_value <- ncol(data_w)
     
-    score <- base::round(mean(as.matrix(data_w)) * 100)
+    score <- base::round(mean(sapply(n_years, function(i) analysis_results[[i]][[16]])))
     assign("connectivity_score", score, envir = .GlobalEnv)
     
     data_w$remainder <- apply(data_w, 1, function(x) ncol(data_w) - sum(x))
     
     data <- gather(data_w, key = "group", value = "value")
     
-    data$id <- factor(rep(1:n_year_groups, ncol(data_w)))
+    data$id <- factor(rep(1:n_years, ncol(data_w)))
     data$group <- factor(data$group, levels = rev(unique(data$group)))
     
     colours <- c(viridis(ncol(data_w) - 1, end = 0.8), "#e1e1e1")
@@ -1206,7 +1146,7 @@ plot_circ_bar <- function(spatial_points,
     #            inherit.aes = FALSE)
   }
   
-  if(variable_name == "coverage" & !is.null(spatial_list)) {
+  if(variable_name == "coverage") {
     p <- p + geom_text(data = data,
                        mapping = aes(x = id, y = 1, label = paste0("Y", toupper(row.names(data)))),
                        color = "black",
@@ -1252,30 +1192,19 @@ plot_circ_bar <- function(spatial_points,
 }
 
 # Plot categories as bars on a ring
-plot_classes <- function(spatial_points, variable_name, colour_palette, image_path) {
-  st_geometry(spatial_points) <- NULL
-  spatial_points <- as.data.frame(spatial_points)
-  
-  height_ranges <- rbind(cbind(0, 0.75),
-                         cbind(0.75, 1.5),
-                         cbind(1.5, 3),
-                         cbind(3, Inf))
-  
-  ifelse(variable_name == "size",
-         data <- data.frame(
-           category = c("0-0.75m", "0.75-1.5m", "1.5-3m", "+3m"),
-           values = apply(height_ranges, 1, function(hts) length(which(spatial_points$max_height > hts[1] & spatial_points$max_height <= hts[2])))
-         ),
-         data <- data.frame(
-           category = toupper(unique(spatial_points[ , variable_name])),
-           values = sapply(unique(spatial_points[ , variable_name]), function(var) length(which(spatial_points[ , variable_name] == var)))
-         ))
-  
-  ifelse(variable_name == "size",
-         score <- shannon_evenness(data$values) * (length(unique(data$values)) / 4),
-         score <- shannon_evenness(data$values) * (length(unique(data$values)) / 3))
-  
-  score <- base::round(score * 100)
+plot_classes <- function(analysis_results, variable_name, colour_palette, image_path) {
+  if(variable_name == "density") {
+    score <- analysis_results[[1]][[9]]
+    data <- analysis_results[[1]][[1]]
+  }
+  if(variable_name == "size") {
+    score <- analysis_results[[1]][[10]]
+    data <- analysis_results[[1]][[2]]
+  }
+  if(variable_name == "texture") {
+    score <- analysis_results[[1]][[11]]
+    data <- analysis_results[[1]][[3]]
+  }
   assign(paste0(variable_name, "_score"), score, envir = .GlobalEnv)
   
   # Compute percentages
@@ -1315,38 +1244,15 @@ plot_classes <- function(spatial_points, variable_name, colour_palette, image_pa
 }
 
 # Plot proportion of categories as ticks on a ring
-plot_percent <- function(spatial_points,
-                         boundary = NULL,
+plot_percent <- function(analysis_results,
                          variable_name,
                          target_value,
                          colour,
                          label) {
   
-  # if(variable_name == "distribution") {
-  #   score <- analyse_spatial_patterning(spatial_points, boundary)
-  #   zero_prop <- base::round((1 - score) * 100)
-  #   one_prop <- base::round(score * 100)
-  # }
+  if(variable_name == "endemism") data <- analysis_results[[1]][[4]]
   
-  if(variable_name == "endemism") {
-    st_geometry(spatial_points) <- NULL
-    spatial_points <- as.data.frame(spatial_points)
-    
-    props <- table(spatial_points[ , variable_name])
-    
-    if(length(props) == 1 && names(props) %in% target_value) {
-      props <- c(0, props)
-    }
-    
-    zero_prop <- base::round((props[1] / sum(props)) * 100)
-    one_prop <- base::round((props[2] / sum(props)) * 100)
-    
-  }
-  
-  data <- data.frame(
-    category = 1:100,
-    values = c(rep(0, zero_prop), rep(1, one_prop))
-  )
+  one_prop <- sum(data$values)
   
   # Compute the cumulative percentages (top of each rectangle)
   data$ymax = 1:100
@@ -1354,9 +1260,9 @@ plot_percent <- function(spatial_points,
   # Compute the bottom of each rectangle
   data$ymin = c(0, head(data$ymax, n = -1))
   
-  pr_palette <- c(rep(colour, one_prop),  rep("#e8e8e8", zero_prop))
+  pr_palette <- c(rep(colour, one_prop),  rep("#e8e8e8", (100 - one_prop)))
   
-  score <- base::round(one_prop, digits = 0)
+  score <- analysis_results[[1]][[12]]
   assign(paste0(variable_name, "_score"), score, envir = .GlobalEnv)
   
   label_text <- paste0(score, "/100\n", label, "\nSCORE")
@@ -1382,6 +1288,34 @@ plot_percent <- function(spatial_points,
               inherit.aes = FALSE,
               lineheight = 0.9)
 }
+
+
+# Plot change in 1m coverage and connectivity over simulation time period 
+plot_temporal_change <- function(analysis_results,
+                                 colours = c("firebrick4",
+                                             "midnightblue",
+                                             "gray40")) {
+  
+  n_years <- length(analysis_results)
+  data <- data.frame("year" = seq_len(n_years),
+                     "coverage" = sapply(seq_len(n_years),
+                                         function(i) analysis_results[[i]][[7]]),
+                     "connectivity" = sapply(seq_len(n_years),
+                                             function(i) mean(analysis_results[[i]][[8]]))
+  )
+  data <- as.data.frame(mutate(rowwise(data), mean = mean(c_across(c('coverage', 'connectivity')), na.rm=TRUE)))
+  data[c('coverage', 'connectivity', 'mean')] <- lapply(data[c('coverage', 'connectivity', 'mean')], function(x) x * 100)
+  
+  # Make the plot
+  ggplot(data, aes(ymax = 100, ymin = 0, xmax = n_years, xmin = 1)) +
+    geom_line(aes(x = year, y = coverage), color = colours[1]) +
+    geom_line(aes(x = year, y = connectivity), color = colours[2]) +
+    geom_line(aes(x = year, y = mean), color = colours[3], linetype = 5) +
+    #geom_text(x = 3.5, aes(y = labelPosition, label = toupper(category)), size = 4) +
+    theme_minimal() +
+    theme(legend.position = "none")
+}
+
 
 # Original function by Stefan Jünger
 # https://stefanjuenger.github.io/gesis-workshop-geospatial-techniques-R/slides/2_4_Advanced_Maps_II/2_4_Advanced_Maps_II.html#8

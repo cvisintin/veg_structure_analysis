@@ -20,10 +20,15 @@ home_ex_years_1_30 <- process_structure(point_locations = home_ex_plant_points,
                                 years = 1:30,
                                 cellarea = 10)
 
+# Save spatial grids file
 save(home_ex_years_1_30, file = "output/sample_landscape/home_ex_years_1_30")
 
-analysis_data <- analyse_spatial_data(spatial_points = home_ex_plant_points,
+# Analyse spatial grids
+home_ex_results <- analyse_spatial_data(spatial_points = home_ex_plant_points,
                                spatial_list = home_ex_years_1_30)
+
+# Save analysis data
+save(home_ex_results, file = "output/sample_landscape/home_ex_results")
 
 ####################################################################
 
