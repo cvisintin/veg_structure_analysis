@@ -11,30 +11,145 @@ library(viridis)
 library(spatstat)
 library(echarts4r)
 
-# # Determine spatial patterning and assess whether there is uniform distribution or not
-# analyse_spatial_patterning <- function(spatial_points, boundary) {
-#   species <- unique(spatial_points$species)
-#   n_species <- length(species)
-#   scores <- rep(NA, n_species)
-#   for (i in seq_len(n_species)) {
-#     idx <- spatial_points$species == species[i]
-#     ppp <- ppp(x = st_coordinates(spatial_points)[idx, 1],
-#                y = st_coordinates(spatial_points)[idx, 2],
-#                window = as.owin(st_bbox(boundary)))
-#     scores[i] <- ifelse(ppp$n > 2,
-#                         {K <- envelope(ppp, silent = TRUE, verbose = FALSE)
-#                         auc_theo <- sum(diff(seq_len(length(K$theo))) * (head(K$theo, -1) + tail(K$theo, -1))) / 2
-#                         auc_obs <- sum(diff(seq_len(length(K$obs))) * (head(K$obs, -1) + tail(K$obs, -1))) / 2
-#                         auc_prop <- auc_theo / auc_obs
-#                         if(auc_prop <= 1) auc_score <- auc_prop
-#                         if(auc_prop > 1) auc_score <- 1 / auc_prop
-#                         auc_score
-#                         }, 0)
-#   }
-#   scores_idx <- which(scores > 0)
-#   final_score <- mean(scores[scores_idx])
-#   final_score
-# }
+# Analyse spatial data and create output for visualisations
+analyse_spatial_data <- function(spatial_points, spatial_list) {
+  
+  years <- names(spatial_list)
+  n_year_groups <- length(spatial_list)
+  
+  # Extract unique heights from file list and convert to numeric and meter units
+  heights <- names(spatial_list[[1]])
+  heights <- as.numeric(substr(heights, (nchar(heights) + 1) - 4, nchar(heights))) / 100
+  n_heights <- length(heights)
+  
+  st_geometry(spatial_points) <- NULL
+  spatial_points <- as.data.frame(spatial_points)
+  height_ranges <- rbind(cbind(0, 0.75),
+                         cbind(0.75, 1.5),
+                         cbind(1.5, 3),
+                         cbind(3, Inf))
+  
+  master_grid <- spatial_list[[1]][[1]]
+  
+  grid_spacing <- attr(spatial_list, 'gridspacing')
+  
+  search_dist <- grid_spacing * 1.5
+  
+  buffers <- st_buffer(st_centroid(master_grid$geometry), search_dist)
+  
+  points <- st_centroid(master_grid$geometry)
+  points <- st_sf(data.frame("id" = 1:length(points)), geometry = points)
+  
+  idx <- master_grid$id
+  
+  # Create master neighborhood list
+  nb_list <- lapply(idx, function(p) {
+    ids <- points$id[st_intersects(points, buffers[p], sparse = FALSE, prepared = FALSE)]
+    ids <- setdiff(ids, p)
+  })
+  
+  density_data <- data.frame(
+    category = toupper(unique(spatial_points[ , "density"])),
+    values = sapply(unique(spatial_points[ , "density"]), function(var) length(which(spatial_points[ , "density"] == var)))
+  )
+  density_score <- shannon_evenness(density_data$values) * (length(unique(density_data$values)) / 3)
+  density_score <- base::round(density_score * 100)
+  
+  size_data <- data.frame(
+    category = c("0-0.75m", "0.75-1.5m", "1.5-3m", "+3m"),
+    values = apply(height_ranges, 1, function(hts) length(which(spatial_points$max_height > hts[1] & spatial_points$max_height <= hts[2])))
+  )
+  size_score <- shannon_evenness(size_data$values) * (length(unique(size_data$values)) / 4)
+  size_score <- base::round(size_score * 100)
+  
+  texture_data <- data.frame(
+    category = toupper(unique(spatial_points[ , "texture"])),
+    values = sapply(unique(spatial_points[ , "texture"]), function(var) length(which(spatial_points[ , "texture"] == var)))
+  )
+  texture_score <- shannon_evenness(texture_data$values) * (length(unique(texture_data$values)) / 3)
+  texture_score <- base::round(texture_score * 100)
+  
+  props <- table(spatial_points[ , "endemism"])
+  
+  if(length(props) == 1 && names(props) %in% target_value) {
+    props <- c(0, props)
+  }
+  
+  zero_prop <- base::round((props[1] / sum(props)) * 100)
+  one_prop <- base::round((props[2] / sum(props)) * 100)
+  
+  endemism_data <- data.frame(
+    category = 1:100,
+    values = c(rep(0, zero_prop), rep(1, one_prop))
+  )
+  endemism_score <- base::round(one_prop, digits = 0)
+  
+  species <- sub("(\\w+\\s+\\w+).*", "\\1", spatial_points$species)
+  
+  richness_data <- data.frame(
+    id = factor(seq(1, length(unique(species)), 1)),
+    value = sapply(unique(species), function(sp) length(which(species == sp)))
+  )
+  no_species <- nrow(richness_data)
+  
+  site_area <- sum(st_area(spatial_list[[1]][[1]]))
+  target_no_species <- (as.numeric(site_area) / 10000) * 100
+  
+  richness_score <- pmin(shannon_evenness(richness_data$value) * (no_species / target_no_species), 1)
+  richness_score <- base::round(richness_score * 100)
+  
+  months <- c("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+  n_months <- length(months)
+  
+  phenology_data <- data.frame(
+    id = factor(seq_len(n_months)),
+    value = sapply(months, function(month) sum(grepl(month, spatial_points$phenology)))
+  )
+  
+  phenology_score <- pmin(shannon_evenness(phenology_data$value) * (sum(phenology_data$value > 0) / 12), 1)
+  phenology_score <- base::round(phenology_score * 100)
+  
+  
+  output <- list()
+  for (i in seq_len(n_year_groups)) {
+    
+    spatial_year <- spatial_list[[i]]
+    one_meter_id <- which(grepl("0100", names(spatial_year)))
+    grid <- spatial_year[[one_meter_id]]
+    grid$prop_ol[is.na(grid$prop_ol)] <- 0
+    coverage_data <- sum(grid$prop_ol) / length(grid$prop_ol)
+    coverage_score <- base::round(coverage_data * 100)
+    
+    
+    connectivity_data <- sapply(seq_len(n_heights), function(j) {
+      
+      grid <- spatial_year[[j]]
+      
+      grid$prop_ol[is.na(grid$prop_ol)] <- 0
+      
+      # Based on threshold value
+      grid$prop_ol <- ifelse(grid$prop_ol > 0.3, 1, 0)
+      
+      # # Based on Bernoulli probabilities
+      # grid$prop_ol <- base::round(grid$prop_ol, 3)
+      # grid$prop_ol <- rbinom(n = length(grid$prop_ol), size = 1, prob = grid$prop_ol)
+      
+      mean(sapply(idx, function(p) {
+        sum(grid$prop_ol[nb_list[[p]]]) / length(nb_list[[p]])
+      }))
+      
+    })
+    connectivity_score <- base::round(mean(connectivity_data) * 100)
+    
+    output[[i]] <- list(density_data, size_data, texture_data, endemism_data,
+                        richness_data, phenology_data, coverage_data, connectivity_data,
+                        density_score, size_score, texture_score, endemism_score,
+                        richness_score, phenology_score, coverage_score, connectivity_score)
+    
+  }
+  output
+}
+
 
 # Verify that the point and polygon spatial objects have the same properties and attributes
 check_spatial_input <- function(point_locations, polygon_locations = NULL) {
@@ -279,20 +394,20 @@ create_interactive_score_sheet <- function(spatial_points,
     file.remove(paste0(path_directory, "index.html"))
   }
   
-#   cat(paste0("<!DOCTYPE html>
-# <html lang=\"en\">
-# <head>
-# 	<meta charset=\"UTF-8\">
-# 	<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
-# 	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-# 	<title>Vegetation structure scorecard</title>
-# 	<link rel=\"stylesheet\" href=\"main.css\">
-# </head>
-# <body>
-#    <center><h1>", title, " - Overall score: ", total_score, "</h1></center>
-#    <div class=\"grid-container\">
-#              "),
-#       file = paste0(path_directory, "index.html"))
+  #   cat(paste0("<!DOCTYPE html>
+  # <html lang=\"en\">
+  # <head>
+  # 	<meta charset=\"UTF-8\">
+  # 	<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
+  # 	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+  # 	<title>Vegetation structure scorecard</title>
+  # 	<link rel=\"stylesheet\" href=\"main.css\">
+  # </head>
+  # <body>
+  #    <center><h1>", title, " - Overall score: ", total_score, "</h1></center>
+  #    <div class=\"grid-container\">
+  #              "),
+  #       file = paste0(path_directory, "index.html"))
   
   cat(paste0("<!DOCTYPE html>
 <html lang=\"en\">
@@ -335,8 +450,8 @@ create_interactive_score_sheet <- function(spatial_points,
 				cases, non-aggressive exotic plants that benefit a target species or
 				to create a novel ecosystem may be selected.",
                                   "This is the overall site score based on an unweighted average of 
-                                  all eight individual scores. Note that this score is out of 100 possible points",
-                                  #                                   "This plot reports an overall score that indicates how well different
+        all eight individual scores. Note that this score is out of 100 possible points",
+                                  #         "This plot reports an overall score that indicates how well different
                                   # 				species are distributed across a site. A low value (approaching zero)
                                   # 				indicates that species are clustered or clumped and unevenly distributed
                                   # 				around a site. A high value (approaching one) suggests that the species

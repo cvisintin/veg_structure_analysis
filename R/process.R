@@ -22,6 +22,9 @@ home_ex_years_1_30 <- process_structure(point_locations = home_ex_plant_points,
 
 save(home_ex_years_1_30, file = "output/sample_landscape/home_ex_years_1_30")
 
+analysis_data <- analyse_spatial_data(spatial_points = home_ex_plant_points,
+                               spatial_list = home_ex_years_1_30)
+
 ####################################################################
 
 ####################### Torquay Greenspace #########################
