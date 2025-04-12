@@ -71,7 +71,7 @@ analyse_spatial_data <- function(spatial_points, spatial_list) {
   
   props <- table(spatial_points[ , "endemism"])
   
-  if(length(props) == 1 && names(props) %in% target_value) {
+  if(length(props) == 1 && names(props) %in% "native") {
     props <- c(0, props)
   }
   

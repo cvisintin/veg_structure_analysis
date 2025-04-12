@@ -47,6 +47,13 @@ park_tq_years_1_30 <- process_structure(point_locations = park_tq_plant_points,
 
 save(park_tq_years_1_30, file = "output/torquay/park_tq_years_1_30")
 
+# Analyse spatial grids
+park_tq_results <- analyse_spatial_data(spatial_points = park_tq_plant_points,
+                                        spatial_list = park_tq_years_1_30)
+
+# Save analysis data
+save(park_tq_results, file = "output/torquay/park_tq_results")
+
 ####################################################################
 
 ####################### Averley Park ###############################
@@ -67,6 +74,13 @@ park_av_years_1_30 <- process_structure(point_locations = park_av_plant_points,
                                         cellarea = 10)
 
 save(park_av_years_1_30, file = "output/averley/park_av_years_1_30")
+
+# Analyse spatial grids
+park_av_results <- analyse_spatial_data(spatial_points = park_av_plant_points,
+                                        spatial_list = park_av_years_1_30)
+
+# Save analysis data
+save(park_av_results, file = "output/averley/park_av_results")
 
 ####################################################################
 
@@ -89,6 +103,13 @@ park_b_years_1_30 <- process_structure(point_locations = park_b_plant_points,
 
 save(park_b_years_1_30, file = "output/booyeembara/park_b_years_1_30")
 
+# Analyse spatial grids
+park_b_results <- analyse_spatial_data(spatial_points = park_b_plant_points,
+                                        spatial_list = park_b_years_1_30)
+
+# Save analysis data
+save(park_b_results, file = "output/booyeembara/park_b_results")
+
 ####################################################################
 
 
@@ -107,12 +128,14 @@ conn_test_years_1_30 <- process_structure(point_locations = conn_test_plant_poin
 
 save(conn_test_years_1_30, file = "output/sample_landscape/conn_test_years_1_30")
 
-# Load grids file
-load(file = "output/sample_landscape/conn_test_years_1_30")
+# Analyse spatial grids
+conn_test_results <- analyse_spatial_data(spatial_points = conn_test_plant_points,
+                                       spatial_list = conn_test_years_1_30)
+
+# Save analysis data
+save(conn_test_results, file = "output/sample_landscape/conn_test_results")
 
 # Create score sheet
-create_interactive_score_sheet(spatial_points = conn_test_plant_points,
-                               boundary = conn_test_site_boundary,
-                               spatial_list = conn_test_years_1_30,
+create_interactive_score_sheet(analysis_results = conn_test_results,
                                path_directory = "figs/web/conn_test/",
                                title = "CONNECTIVITY TEST")

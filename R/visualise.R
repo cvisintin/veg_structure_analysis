@@ -54,12 +54,18 @@ create_images(park_tq_years_1_30, path = "figs/images/torquay/", filename = "par
 # Animate spatial outputs
 system('convert -delay 50 -dispose previous -loop 0 figs/images/torquay/park_tq_veg* figs/animations/park_tq_veg_growth.gif')
 
+# Load results file
+load(file = "output/torquay/park_tq_results")
+
 # Create score sheet
-create_interactive_score_sheet(spatial_points = park_tq_plant_points,
-                               boundary = park_tq_site_boundary,
-                               spatial_list = park_tq_years_1_30,
+create_interactive_score_sheet(analysis_results = park_tq_results,
                                path_directory = "figs/web/torquay/",
                                title = "GREENSPACE")
+
+# Plot changes in coverage and connectivity over time
+png("figs/images/torquay/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
+plot_temporal_change(park_tq_results)
+dev.off()
 
 ####################################################################
 
@@ -84,12 +90,18 @@ create_images(park_av_years_1_30, path = "figs/images/averley/", filename = "par
 # Animate spatial outputs
 system('convert -delay 50 -dispose previous -loop 0 figs/images/averley/park_av_veg* figs/animations/park_av_veg_growth.gif')
 
+# Load results file
+load(file = "output/averley/park_av_results")
+
 # Create score sheet
-create_interactive_score_sheet(spatial_points = park_av_plant_points,
-                               boundary = park_av_site_boundary,
-                               spatial_list = park_av_years_1_30,
+create_interactive_score_sheet(analysis_results = park_av_results,
                                path_directory = "figs/web/averley/",
                                title = "NEIGHBOURHOOD PARK")
+
+# Plot changes in coverage and connectivity over time
+png("figs/images/averley/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
+plot_temporal_change(park_av_results)
+dev.off()
 
 ####################################################################
 
@@ -114,17 +126,22 @@ create_images(park_b_years_1_30, path = "figs/images/booyeembara/", filename = "
 # Animate spatial outputs
 system('convert -delay 50 -dispose previous -loop 0 figs/images/booyeembara/park_b_veg* figs/animations/park_b_veg_growth.gif')
 
+# Load results file
+load(file = "output/booyeembara/park_b_results")
+
 # Create score sheet
-create_interactive_score_sheet(spatial_points = park_b_plant_points,
-                               boundary = park_b_site_boundary,
-                               spatial_list = park_b_years_1_30,
+create_interactive_score_sheet(analysis_results = park_b_results,
                                path_directory = "figs/web/booyeembara/",
                                title = "BUSHLAND")
 
+# Plot changes in coverage and connectivity over time
+png("figs/images/booyeembara/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
+plot_temporal_change(park_b_results)
+dev.off()
 
 #####################################################################
 
-metrics <- c("distribution", "connectivity", "coverage", "density", "endemism", "phenology", "richness", "size", "texture")
+metrics <- c("connectivity", "coverage", "density", "endemism", "phenology", "richness", "size", "texture")
 for (i in metrics) {
   combine_score_sheet_images(metric = i,
                              nrows = 1,

@@ -69,10 +69,7 @@ y_plots <- lapply(seq_len(n_year_groups), function(j) {
 
 
 m_plot <- readPNG('data/gis/sample_temporal/veg_plan_gis.png')
-# t1_plot <- readPNG('figs/images/sample_temporal/veg_structure_year_01.png')
-# t2_plot <- readPNG('figs/images/sample_temporal/veg_structure_year_03.png')
-# t3_plot <- readPNG('figs/images/sample_temporal/veg_structure_year_05.png')
-# t4_plot <- readPNG('figs/images/sample_temporal/veg_structure_year_10.png')
+
 
 g_plot <- arrangeGrob(rasterGrob(m_plot),
                       y_plots[[1]],
