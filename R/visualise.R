@@ -153,7 +153,7 @@ for (i in metrics) {
 }
 
 # Plot changes in connectivity over time for all sites
-png("figs/images/conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
+png("figs/images/conn_change.png", height = 600, width = 800, pointsize = 4, res = 150)
 plot_temporal_change(analysis_results_list = list(park_tq_results, park_av_results, park_b_results),
                      variable = "connectivity",
                      titles = c("Greenspace", "Neighborhood Park", "Bushland"))
