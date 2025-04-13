@@ -64,7 +64,7 @@ create_interactive_score_sheet(analysis_results = park_tq_results,
 
 # Plot changes in coverage and connectivity over time
 png("figs/images/torquay/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
-plot_temporal_change(park_tq_results)
+plot_temporal_change(park_tq_results, y_max = 30)
 dev.off()
 
 ####################################################################
@@ -100,7 +100,7 @@ create_interactive_score_sheet(analysis_results = park_av_results,
 
 # Plot changes in coverage and connectivity over time
 png("figs/images/averley/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
-plot_temporal_change(park_av_results)
+plot_temporal_change(park_av_results, y_max = 30)
 dev.off()
 
 ####################################################################
@@ -136,7 +136,7 @@ create_interactive_score_sheet(analysis_results = park_b_results,
 
 # Plot changes in coverage and connectivity over time
 png("figs/images/booyeembara/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
-plot_temporal_change(park_b_results)
+plot_temporal_change(park_b_results, y_max = 30)
 dev.off()
 
 #####################################################################
@@ -151,3 +151,11 @@ for (i in metrics) {
                                        "figs/web/booyeembara/"),
                              titles = c("Greenspace", "Neighborhood Park", "Bushland"))
 }
+
+# Plot changes in connectivity over time for all sites
+png("figs/images/conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
+plot_temporal_change(analysis_results_list = list(park_tq_results, park_av_results, park_b_results),
+                     variable = "connectivity",
+                     titles = c("Greenspace", "Neighborhood Park", "Bushland"))
+dev.off()
+

@@ -141,10 +141,14 @@ analyse_spatial_data <- function(spatial_points, spatial_list) {
     })
     connectivity_score <- base::round(mean(connectivity_data) * 100)
     
-    output[[i]] <- list(density_data, size_data, texture_data, endemism_data,
-                        richness_data, phenology_data, coverage_data, connectivity_data,
-                        density_score, size_score, texture_score, endemism_score,
-                        richness_score, phenology_score, coverage_score, connectivity_score)
+    output[[i]] <- list("density_data" = density_data, "size_data" = size_data,
+                        "texture_data" = texture_data, "endemism_data" = endemism_data,
+                        "richness_data" = richness_data, "phenology_data" = phenology_data,
+                        "coverage_data" = coverage_data, "connectivity_data" = connectivity_data,
+                        "density_score" = density_score, "size_score" = size_score,
+                        "texture_score" = texture_score, "endemism_score" = endemism_score,
+                        "richness_score" = richness_score, "phenology_score" = phenology_score,
+                        "coverage_score" = coverage_score, "connectivity_score" = connectivity_score)
     
   }
   output
@@ -1192,7 +1196,10 @@ plot_circ_bar <- function(analysis_results,
 }
 
 # Plot categories as bars on a ring
-plot_classes <- function(analysis_results, variable_name, colour_palette, image_path) {
+plot_classes <- function(analysis_results,
+                         variable_name,
+                         colour_palette,
+                         image_path) {
   if(variable_name == "density") {
     score <- analysis_results[[1]][[9]]
     data <- analysis_results[[1]][[1]]
@@ -1290,30 +1297,52 @@ plot_percent <- function(analysis_results,
 }
 
 
-# Plot change in 1m coverage and connectivity over simulation time period 
-plot_temporal_change <- function(analysis_results,
-                                 colours = c("firebrick4",
-                                             "midnightblue",
-                                             "gray40")) {
+# Plot change in variable over simulation time period - note all compared
+# scenarios must share the same time period (e.g. number of years) 
+plot_temporal_change <- function(analysis_results_list,
+                                 colours = c("indianred4",
+                                             "steelblue",
+                                             "darkseagreen4"),
+                                 variable,
+                                 titles = NULL) {
   
-  n_years <- length(analysis_results)
-  data <- data.frame("year" = seq_len(n_years),
-                     "coverage" = sapply(seq_len(n_years),
-                                         function(i) analysis_results[[i]][[7]]),
-                     "connectivity" = sapply(seq_len(n_years),
-                                             function(i) mean(analysis_results[[i]][[8]]))
-  )
-  data <- as.data.frame(mutate(rowwise(data), mean = mean(c_across(c('coverage', 'connectivity')), na.rm=TRUE)))
-  data[c('coverage', 'connectivity', 'mean')] <- lapply(data[c('coverage', 'connectivity', 'mean')], function(x) x * 100)
+  if(!is.null(titles) & length(titles) != length(analysis_results_list)) {
+    stop("The number of titles specified does not match the number of scenarios provided for comparison")
+  }
   
+  scenario_names <- gsub(" ", "_", tolower(titles))
+  n_scenarios <- length(analysis_results_list)
+  n_years <- length(analysis_results_list[[1]])
+  data <- data.frame(matrix(nrow = n_years, ncol = n_scenarios + 1))
+  colnames(data) <- c("year", scenario_names)
+  data$year <- seq_len(n_years)
+  for(i in seq_len(n_scenarios)) {
+    data[ , i + 1] <- sapply(seq_len(n_years),
+                             function(x) mean(analysis_results_list[[i]][[x]][[paste0(variable, "_data")]]) * 100)
+  }
+  data <- rbind(rep(0, n_scenarios + 1), data)
+  
+  x_pos <- max(data$year) * 0.4
+  y_pos <- sapply(seq_len(n_scenarios), function(x) max(data[ , x + 1]) * 0.98)
   # Make the plot
-  ggplot(data, aes(ymax = 100, ymin = 0, xmax = n_years, xmin = 1)) +
-    geom_line(aes(x = year, y = coverage), color = colours[1]) +
-    geom_line(aes(x = year, y = connectivity), color = colours[2]) +
-    geom_line(aes(x = year, y = mean), color = colours[3], linetype = 5) +
-    #geom_text(x = 3.5, aes(y = labelPosition, label = toupper(category)), size = 4) +
+  p <- ggplot(data, aes(ymax = y_max, ymin = 0, xmax = n_years, xmin = 0)) +
+    ylab(paste0("Relative Score (", variable, ")")) +
+    xlab("Timestep") +
+    
     theme_minimal() +
     theme(legend.position = "none")
+  for(i in rev(seq_len(n_scenarios))) {
+    p <- p + 
+      geom_ribbon(aes(x = year, ymax = !!sym(scenario_names[i]),
+                      ymin = 0, alpha = 0.3), color = colours[i],
+                  fill = colours[i])
+  }
+  for(i in rev(seq_len(n_scenarios))) {
+    p <- p +
+      annotate('text', x = x_pos, y = y_pos[i], label = titles[i],
+               color = colours[i], size = 2, fontface = 'bold', hjust = 0)
+  }
+  p
 }
 
 
