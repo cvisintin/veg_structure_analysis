@@ -292,241 +292,6 @@ create_images <- function(spatial_list, path, filename) {
   })
 }
 
-# Create a web-based, interactive score sheet to assess the outcome of a landscape design 
-create_interactive_score_sheet <- function(analysis_results,
-                                           path_directory,
-                                           title) {
-  
-  ### Density ###
-  print("Preparing density plot...")
-  png(paste0(path_directory, "density.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_classes(analysis_results = analysis_results,
-                     variable_name = "density",
-                     colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
-                     image_path = "data/images/leaves_icon.png"))
-  dev.off()
-  
-  ### Size ###
-  print("Preparing sizes plot...")
-  png(paste0(path_directory, "size.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_classes(analysis_results = analysis_results,
-                     variable_name = "size",
-                     colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
-                     image_path = "data/images/vegetation_icon.png"))
-  dev.off()
-  
-  ### Texture ###
-  print("Preparing texture plot...")
-  png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_classes(analysis_results = analysis_results,
-                     variable_name = "texture",
-                     colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
-                     image_path = "data/images/texture_icon.png"))
-  dev.off()
-  
-  ### Endemism ###
-  print("Preparing endemism plot...")
-  png(paste0(path_directory, "endemism.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_percent(analysis_results = analysis_results,
-                     variable_name = "endemism",
-                     target_value = "native",
-                     colour = "#a072a6",
-                     label = "ENDEMISM"))
-  dev.off()
-  
-  # ### Distribution ###
-  # print("Preparing distribution plot...")
-  # png(paste0(path_directory, "distribution.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  # print(plot_percent(spatial_points = spatial_points,
-  #                    boundary = boundary,
-  #                    variable_name = "distribution",
-  #                    colour = "#a19a65",
-  #                    label = "DISTRIBUTION"))
-  # dev.off()
-  
-  ### Species richness ###
-  print("Preparing species plot...")
-  png(paste0(path_directory, "richness.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_circ_bar(analysis_results = analysis_results,
-                      variable_name = "richness",
-                      colours = "#a6976d",
-                      polar_rotation = 0.25))
-  dev.off()
-  
-  ### Phenology ###
-  print("Preparing phenology plot...")
-  png(paste0(path_directory, "phenology.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_circ_bar(analysis_results = analysis_results,
-                      variable_name = "phenology",
-                      colours = "#b0d4d6",
-                      polar_rotation = 0.25))
-  dev.off()
-  
-  ### Coverage at 1m ###
-  print("Preparing coverage plot...")
-  png(paste0(path_directory, "coverage.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_circ_bar(analysis_results = analysis_results,
-                      variable_name = "coverage",
-                      colours = "#c9837d"))
-  dev.off()
-  
-  ### Connectivity ###
-  print("Preparing connectivity plot...")
-  png(paste0(path_directory, "connectivity.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  print(plot_circ_bar(analysis_results = analysis_results,
-                      variable_name = "connectivity",
-                      stacked = TRUE))
-  dev.off()
-  
-  print("Calculating total score.")
-  score_names <- ls(pattern = "_score$", envir = .GlobalEnv)
-  total_score <- base::round(mean(sapply(score_names, function(x) as.numeric(get(x)))))
-  png(paste0(path_directory, "total.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  dial_plot(value = total_score)
-  dev.off()
-  
-  print("Creating score sheet.")
-  if (file.exists(paste0(path_directory, "index.html"))) {
-    file.remove(paste0(path_directory, "index.html"))
-  }
-  
-  #   cat(paste0("<!DOCTYPE html>
-  # <html lang=\"en\">
-  # <head>
-  # 	<meta charset=\"UTF-8\">
-  # 	<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
-  # 	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-  # 	<title>Vegetation structure scorecard</title>
-  # 	<link rel=\"stylesheet\" href=\"main.css\">
-  # </head>
-  # <body>
-  #    <center><h1>", title, " - Overall score: ", total_score, "</h1></center>
-  #    <div class=\"grid-container\">
-  #              "),
-  #       file = paste0(path_directory, "index.html"))
-  
-  cat(paste0("<!DOCTYPE html>
-<html lang=\"en\">
-<head>
-	<meta charset=\"UTF-8\">
-	<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
-	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-	<title>Vegetation structure scorecard</title>
-	<link rel=\"stylesheet\" href=\"main.css\">
-</head>
-<body>
-   <div class=\"grid-container\">
-             "),
-      file = paste0(path_directory, "index.html"))
-  
-  html_figures_df <- data.frame(name = c("density", "size", "texture",
-                                         "endemism", "total", "richness", # "distribution",
-                                         "coverage", "phenology", "connectivity"),
-                                description = c(
-                                  "Density describes the interstitial space within the foliage. This is
-				primarily an aesthetic metric that is used by the designer, however, may
-				have implications for target species. All three density categories should be
-				represented and balanced across the site unless target species are identified - in
-				which case beneficial classes may be more dominantly represented.",
-                                  "The proportion of plants that will fall within
-				predetermined height categories at maturity. The predetermined four
-				height categories cover off on many species' requirements and should all
-				be represented and balanced across the site. In some cases, identified target
-				species may require particular classes to be more dominantly
-				represented.",
-                                  "Texture describes the roughness of the foliage. This is primarily an
-				aesthetic metric that is used by the designer, however, may
-				have implications for target species. All three texture categories should be
-				represented and balanced across the site unless target species are identified - in
-				which case beneficial classes may be more dominantly represented.",
-                                  "The proportion of species that are native to the
-				country, not necessarily site, where the project will be realised. It is
-				normally good practice to maximise the amount of native/local vegetation
-				as other native species will have evolved to best utilise them. In some
-				cases, non-aggressive exotic plants that benefit a target species or
-				to create a novel ecosystem may be selected.",
-                                  "This is the overall site score based on an unweighted average of 
-        all eight individual scores. Note that this score is out of 100 possible points",
-                                  #         "This plot reports an overall score that indicates how well different
-                                  # 				species are distributed across a site. A low value (approaching zero)
-                                  # 				indicates that species are clustered or clumped and unevenly distributed
-                                  # 				around a site. A high value (approaching one) suggests that the species
-                                  # 				are more randomly and evenly distributed - and closer to what we may
-                                  # 				encounter in an undisturbed landscape at a smaller scale.",
-                                  "The overall diversity and balance of plant species
-				used on site. The evenness score compares the total numbers of each
-				species (also depicted in the size of the gray bars) - a score close to
-				zero indicates the dominance of a few species; a score of one-hundred suggests
-				a more balanced representation of species. It is also important to
-				examine the number of gray bars as this represents the total number of
-				different species on site and should be as large as possible to
-				support biodiversity.",
-                                  "The relative proportion of vegetation at a one meter
-				cut height across the site, and how it changes through time. It is a
-				coarse proxy for measuring the presence of understory vegetation on site.
-				Each bar represents a year in the specified growth simulation. It is
-				preferable to not see any reductions in the bar heights throughout time
-				as this indicates diminishing understory as the site vegetation matures.
-				The grey portions	of the bars represent the hypothetical maximums",
-                                  "Phenology is a measure of timing of recurring biological events - in
-				this case, which months that plants are flowering in throughout the
-				year. The bars represent the relative proportions of plants that flower
-				in each respective month. In order to provide consistent resources for
-				species	throughout the year, these bars should be relatively balanced.
-				At a minimum, all months should have some flowering plants.",
-                                  "Connectivity is a measure of how much contiguous vegetation exists on
-				the site. A connectivity value close to one-hundred indicates a high amount of
-				contiguous or continuous vegetation throughout the site; a value closer
-				to zero suggests very isolated patches of vegetation. Note, this measure
-				is a composite value based on the scores obtained at five heights - by
-				default 0.3m, 1.0m, 1.7m, 2.4m, and 3.1m - also indicated by the colour
-				gradients in the bars (lower heights toward the inner circle). As the
-				vegetation matures over time, connectivity changes, and each bar
-				represents a year in the specified growth simulation. The grey portions
-				of the bars represent the hypothetical maximums."))
-  
-  for (i in 1:nrow(html_figures_df)) {
-    if(!is.na(html_figures_df$name[i])) {
-      name <- html_figures_df$name[i]
-      Name <- paste0(toupper(substr(name, 1, 1)), substr(name, 2, nchar(name)))
-      cat(paste0("<div class=\"image\">
-		  <img class=\"image__img\" src=\"", name,
-                 ".png\" alt=\"", Name, "\">
-		  <div class=\"image__overlay\">
-			<div class=\"image__title\">", Name, "</div>
-			<p class=\"image__description\">",
-                 html_figures_df$description[i],
-                 "</p>
-		  </div>
-	  </div>
-             "),
-          file = paste0(path_directory, "index.html"),
-          append = TRUE)
-    }else{
-      cat(paste0("<div>
-		  <div>
-			<p></p>
-		  </div>
-	  </div>"),
-          file = paste0(path_directory, "index.html"),
-          append = TRUE)
-    }
-  }
-  cat("  </div> 
-</body>
-</html>
-             ",
-      file = paste0(path_directory, "index.html"),
-      append = TRUE)
-  
-  file.copy("data/main.css", paste0(path_directory, "main.css"), overwrite = TRUE)
-  # file.copy("data/index.html", paste0(path_directory, "index.html"), overwrite = TRUE)
-  
-  # if(!is.null(spatial_list)) {
-  #   file.copy("data/index_full.html", paste0(path_directory, "index.html"), overwrite = TRUE)
-  # }
-  
-}
 
 # Create a grid over site boundary to organise and analyse data
 create_grid <- function(boundary, # Boundary to create grid cells over
@@ -620,6 +385,255 @@ create_grid <- function(boundary, # Boundary to create grid cells over
   grid
 }
 
+
+# Create a web-based, interactive score sheet to assess the outcome of a landscape design 
+create_score_sheet <- function(analysis_results,
+                               path_directory,
+                               title,
+                               web_based = TRUE) {
+  
+  ### Density ###
+  print("Preparing density plot...")
+  if(web_based) png(paste0(path_directory, "density.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  if(!web_based) pdf(paste0(path_directory, "density.pdf"), height = 4, width = 4, pointsize = 4)
+  print(plot_classes(analysis_results = analysis_results,
+                     variable_name = "density",
+                     colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
+                     image_path = "data/images/leaves_icon.png"))
+  dev.off()
+  
+  ### Size ###
+  print("Preparing sizes plot...")
+  if(web_based) png(paste0(path_directory, "size.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  if(!web_based) pdf(paste0(path_directory, "size.pdf"), height = 4, width = 4, pointsize = 4)
+  print(plot_classes(analysis_results = analysis_results,
+                     variable_name = "size",
+                     colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
+                     image_path = "data/images/vegetation_icon.png"))
+  dev.off()
+  
+  ### Texture ###
+  print("Preparing texture plot...")
+  if(web_based) png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  if(!web_based) pdf(paste0(path_directory, "texture.pdf"), height = 4, width = 4, pointsize = 4)
+  print(plot_classes(analysis_results = analysis_results,
+                     variable_name = "texture",
+                     colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
+                     image_path = "data/images/texture_icon.png"))
+  dev.off()
+  
+  ### Endemism ###
+  print("Preparing endemism plot...")
+  if(web_based) png(paste0(path_directory, "endemism.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  if(!web_based) pdf(paste0(path_directory, "endemism.pdf"), height = 4, width = 4, pointsize = 4)
+  print(plot_percent(analysis_results = analysis_results,
+                     variable_name = "endemism",
+                     target_value = "native",
+                     colour = "#a072a6",
+                     label = "ENDEMISM"))
+  dev.off()
+  
+  # ### Distribution ###
+  # print("Preparing distribution plot...")
+  # png(paste0(path_directory, "distribution.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  # print(plot_percent(spatial_points = spatial_points,
+  #                    boundary = boundary,
+  #                    variable_name = "distribution",
+  #                    colour = "#a19a65",
+  #                    label = "DISTRIBUTION"))
+  # dev.off()
+  
+  ### Species richness ###
+  print("Preparing species plot...")
+  if(web_based) png(paste0(path_directory, "richness.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  if(!web_based) pdf(paste0(path_directory, "richness.pdf"), height = 4, width = 4, pointsize = 4)
+  print(plot_circ_bar(analysis_results = analysis_results,
+                      variable_name = "richness",
+                      colours = "#a6976d",
+                      polar_rotation = 0.25))
+  dev.off()
+  
+  ### Phenology ###
+  print("Preparing phenology plot...")
+  if(web_based) png(paste0(path_directory, "phenology.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  if(!web_based) pdf(paste0(path_directory, "phenology.pdf"), height = 4, width = 4, pointsize = 4)
+  print(plot_circ_bar(analysis_results = analysis_results,
+                      variable_name = "phenology",
+                      colours = "#b0d4d6",
+                      polar_rotation = 0.25))
+  dev.off()
+  
+  ### Coverage at 1m ###
+  print("Preparing coverage plot...")
+  if(web_based) png(paste0(path_directory, "coverage.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  if(!web_based) pdf(paste0(path_directory, "coverage.pdf"), height = 4, width = 4, pointsize = 4)
+  print(plot_circ_bar(analysis_results = analysis_results,
+                      variable_name = "coverage",
+                      colours = "#c9837d"))
+  dev.off()
+  
+  ### Connectivity ###
+  print("Preparing connectivity plot...")
+  if(web_based) png(paste0(path_directory, "connectivity.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  if(!web_based) pdf(paste0(path_directory, "connectivity.pdf"), height = 4, width = 4, pointsize = 4)
+  print(plot_circ_bar(analysis_results = analysis_results,
+                      variable_name = "connectivity",
+                      stacked = TRUE))
+  dev.off()
+  
+  print("Calculating total score.")
+  score_names <- ls(pattern = "_score$", envir = .GlobalEnv)
+  total_score <- base::round(mean(sapply(score_names, function(x) as.numeric(get(x)))))
+  if(web_based) png(paste0(path_directory, "total.png"), height = 400, width = 400, pointsize = 4, res = 150)
+  if(!web_based) pdf(paste0(path_directory, "total.pdf"), height = 4, width = 4, pointsize = 4)
+  dial_plot(value = total_score)
+  dev.off()
+  
+  if(web_based){
+    print("Creating score sheet.")
+    if (file.exists(paste0(path_directory, "index.html"))) {
+      file.remove(paste0(path_directory, "index.html"))
+    }
+    
+    #   cat(paste0("<!DOCTYPE html>
+    # <html lang=\"en\">
+    # <head>
+    # 	<meta charset=\"UTF-8\">
+    # 	<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
+    # 	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+    # 	<title>Vegetation structure scorecard</title>
+    # 	<link rel=\"stylesheet\" href=\"main.css\">
+    # </head>
+    # <body>
+    #    <center><h1>", title, " - Overall score: ", total_score, "</h1></center>
+    #    <div class=\"grid-container\">
+    #              "),
+    #       file = paste0(path_directory, "index.html"))
+    
+    cat(paste0("<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+	<meta charset=\"UTF-8\">
+	<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
+	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+	<title>Vegetation structure scorecard</title>
+	<link rel=\"stylesheet\" href=\"main.css\">
+</head>
+<body>
+   <div class=\"grid-container\">
+             "),
+        file = paste0(path_directory, "index.html"))
+    
+    html_figures_df <- data.frame(name = c("density", "size", "texture",
+                                           "endemism", "total", "richness", # "distribution",
+                                           "coverage", "phenology", "connectivity"),
+                                  description = c(
+                                    "Density describes the interstitial space within the foliage. This is
+				primarily an aesthetic metric that is used by the designer, however, may
+				have implications for target species. All three density categories should be
+				represented and balanced across the site unless target species are identified - in
+				which case beneficial classes may be more dominantly represented.",
+                                    "The proportion of plants that will fall within
+				predetermined height categories at maturity. The predetermined four
+				height categories cover off on many species' requirements and should all
+				be represented and balanced across the site. In some cases, identified target
+				species may require particular classes to be more dominantly
+				represented.",
+                                    "Texture describes the roughness of the foliage. This is primarily an
+				aesthetic metric that is used by the designer, however, may
+				have implications for target species. All three texture categories should be
+				represented and balanced across the site unless target species are identified - in
+				which case beneficial classes may be more dominantly represented.",
+                                    "The proportion of species that are native to the
+				country, not necessarily site, where the project will be realised. It is
+				normally good practice to maximise the amount of native/local vegetation
+				as other native species will have evolved to best utilise them. In some
+				cases, non-aggressive exotic plants that benefit a target species or
+				to create a novel ecosystem may be selected.",
+                                    "This is the overall site score based on an unweighted average of 
+        all eight individual scores. Note that this score is out of 100 possible points",
+                                    #         "This plot reports an overall score that indicates how well different
+                                    # 				species are distributed across a site. A low value (approaching zero)
+                                    # 				indicates that species are clustered or clumped and unevenly distributed
+                                    # 				around a site. A high value (approaching one) suggests that the species
+                                    # 				are more randomly and evenly distributed - and closer to what we may
+                                    # 				encounter in an undisturbed landscape at a smaller scale.",
+                                    "The overall diversity and balance of plant species
+				used on site. The evenness score compares the total numbers of each
+				species (also depicted in the size of the gray bars) - a score close to
+				zero indicates the dominance of a few species; a score of one-hundred suggests
+				a more balanced representation of species. It is also important to
+				examine the number of gray bars as this represents the total number of
+				different species on site and should be as large as possible to
+				support biodiversity.",
+                                    "The relative proportion of vegetation at a one meter
+				cut height across the site, and how it changes through time. It is a
+				coarse proxy for measuring the presence of understory vegetation on site.
+				Each bar represents a year in the specified growth simulation. It is
+				preferable to not see any reductions in the bar heights throughout time
+				as this indicates diminishing understory as the site vegetation matures.
+				The grey portions	of the bars represent the hypothetical maximums",
+                                    "Phenology is a measure of timing of recurring biological events - in
+				this case, which months that plants are flowering in throughout the
+				year. The bars represent the relative proportions of plants that flower
+				in each respective month. In order to provide consistent resources for
+				species	throughout the year, these bars should be relatively balanced.
+				At a minimum, all months should have some flowering plants.",
+                                    "Connectivity is a measure of how much contiguous vegetation exists on
+				the site. A connectivity value close to one-hundred indicates a high amount of
+				contiguous or continuous vegetation throughout the site; a value closer
+				to zero suggests very isolated patches of vegetation. Note, this measure
+				is a composite value based on the scores obtained at five heights - by
+				default 0.3m, 1.0m, 1.7m, 2.4m, and 3.1m - also indicated by the colour
+				gradients in the bars (lower heights toward the inner circle). As the
+				vegetation matures over time, connectivity changes, and each bar
+				represents a year in the specified growth simulation. The grey portions
+				of the bars represent the hypothetical maximums."))
+    
+    for (i in 1:nrow(html_figures_df)) {
+      if(!is.na(html_figures_df$name[i])) {
+        name <- html_figures_df$name[i]
+        Name <- paste0(toupper(substr(name, 1, 1)), substr(name, 2, nchar(name)))
+        cat(paste0("<div class=\"image\">
+		  <img class=\"image__img\" src=\"", name,
+                   ".png\" alt=\"", Name, "\">
+		  <div class=\"image__overlay\">
+			<div class=\"image__title\">", Name, "</div>
+			<p class=\"image__description\">",
+                   html_figures_df$description[i],
+                   "</p>
+		  </div>
+	  </div>
+             "),
+            file = paste0(path_directory, "index.html"),
+            append = TRUE)
+      }else{
+        cat(paste0("<div>
+		  <div>
+			<p></p>
+		  </div>
+	  </div>"),
+            file = paste0(path_directory, "index.html"),
+            append = TRUE)
+      }
+    }
+    cat("  </div> 
+</body>
+</html>
+             ",
+        file = paste0(path_directory, "index.html"),
+        append = TRUE)
+    
+    file.copy("data/main.css", paste0(path_directory, "main.css"), overwrite = TRUE)
+    # file.copy("data/index.html", paste0(path_directory, "index.html"), overwrite = TRUE)
+    
+    # if(!is.null(spatial_list)) {
+    #   file.copy("data/index_full.html", paste0(path_directory, "index.html"), overwrite = TRUE)
+    # }
+  }
+}
+
+
 # Convert polygons to points based on spacing and proportion coverage of plants
 convert_combine <- function(point_locations, # Spatial geometry and attributes of plants
                             polygon_locations # Spatial geometry and attributes of planted areas
@@ -644,6 +658,7 @@ convert_combine <- function(point_locations, # Spatial geometry and attributes o
   
   rbind(point_locations, new_plant_points)
 }
+
 
 # Create a dial plot
 # Original code by Gaston Sanchez   http://www.r-bloggers.com/gauge-chart-in-r/
@@ -758,6 +773,7 @@ dial_plot <- function(label = "", value = 50, dial.radius = 1,
   points(0, 0, col = needle.center.color, pch = 20, cex = needle.center.cex)
 }
 
+
 # Estimate how well the site vegetation is connected using a threshold value
 # for proportion of vegetation coverage in each cell
 estimate_connectivity <- function(spatial_list, threshold = 0.3) {
@@ -823,6 +839,7 @@ estimate_connectivity <- function(spatial_list, threshold = 0.3) {
   
 }
 
+
 # Export a data file for use in an interactive Shiny application
 export_image_set <- function(spatial_list, path, filename) {
   
@@ -885,6 +902,7 @@ export_image_set <- function(spatial_list, path, filename) {
   save(plot_set, file = paste0(path, filename))
   
 }
+
 
 # Build the vegetation structure over time and horizontally cut at specified heights
 process_structure <- function(point_locations, # Spatial geometry and attributes of plants
@@ -1028,6 +1046,7 @@ process_structure <- function(point_locations, # Spatial geometry and attributes
   
   out
 }
+
 
 # Plot multidimensional data as stacked bars in a radial formation
 plot_circ_bar <- function(analysis_results,
@@ -1195,6 +1214,7 @@ plot_circ_bar <- function(analysis_results,
   p
 }
 
+
 # Plot categories as bars on a ring
 plot_classes <- function(analysis_results,
                          variable_name,
@@ -1249,6 +1269,7 @@ plot_classes <- function(analysis_results,
   
   # geom_image(data = data.frame(xx = 0.8, yy = 0, image = image_path), mapping = aes(xx, yy, image = image), size = .3, inherit.aes = FALSE)
 }
+
 
 # Plot proportion of categories as ticks on a ring
 plot_percent <- function(analysis_results,
@@ -1362,6 +1383,7 @@ rotate_data <- function(data, x_add = 0, y_add = 0) {
     )
 }
 
+
 # Calculate the overall Shannon Diversity Evenness Index
 shannon_evenness <- function(counts) {
   sp_props <- counts / sum(counts)
@@ -1372,10 +1394,12 @@ shannon_evenness <- function(counts) {
   score
 }
 
+
 # Rescale values to be between zero and one
 zero_to_one <- function(x) {
   (x - min(x)) / (max(x) - min(x))
 }
+
 
 #### Geometric form functions ####
 columnar <- function(adj_cut_height = 0, plant_height = 0) {

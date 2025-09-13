@@ -27,9 +27,14 @@ system('convert -delay 50 -dispose previous -loop 0 figs/images/sample_landscape
 load(file = "output/sample_landscape/home_ex_results")
 
 # Create score sheet
-create_interactive_score_sheet(analysis_results = home_ex_results,
+create_score_sheet(analysis_results = home_ex_results,
                                path_directory = "figs/web/sample_landscape/",
                                title = "SAMPLE LANDSCAPE")
+
+create_score_sheet(analysis_results = home_ex_results,
+                   path_directory = "figs/pdf/sample_landscape/",
+                   title = "SAMPLE LANDSCAPE",
+                   web_based = FALSE)
 
 # Plot changes in coverage and connectivity over time
 png("figs/images/sample_landscape/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
@@ -58,7 +63,7 @@ system('convert -delay 50 -dispose previous -loop 0 figs/images/torquay/park_tq_
 load(file = "output/torquay/park_tq_results")
 
 # Create score sheet
-create_interactive_score_sheet(analysis_results = park_tq_results,
+create_score_sheet(analysis_results = park_tq_results,
                                path_directory = "figs/web/torquay/",
                                title = "GREENSPACE")
 
@@ -94,7 +99,7 @@ system('convert -delay 50 -dispose previous -loop 0 figs/images/averley/park_av_
 load(file = "output/averley/park_av_results")
 
 # Create score sheet
-create_interactive_score_sheet(analysis_results = park_av_results,
+create_score_sheet(analysis_results = park_av_results,
                                path_directory = "figs/web/averley/",
                                title = "NEIGHBOURHOOD PARK")
 
@@ -130,7 +135,7 @@ system('convert -delay 50 -dispose previous -loop 0 figs/images/booyeembara/park
 load(file = "output/booyeembara/park_b_results")
 
 # Create score sheet
-create_interactive_score_sheet(analysis_results = park_b_results,
+create_score_sheet(analysis_results = park_b_results,
                                path_directory = "figs/web/booyeembara/",
                                title = "BUSHLAND")
 
