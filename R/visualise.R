@@ -54,10 +54,13 @@ load(file = "output/torquay/park_tq_years_1_30")
 export_image_set(park_tq_years_1_30, path = "output/torquay/", filename = "park_tq_veg_structure")
 
 # Create spatial outputs
-create_images(park_tq_years_1_30, path = "figs/images/torquay/", filename = "park_tq_veg_structure")
+create_images(park_tq_years_1_30,
+              path = "figs/images/torquay/",
+              filename = "park_tq_veg_structure",
+              pdf_target = "year_10")
 
 # Animate spatial outputs
-system('convert -delay 50 -dispose previous -loop 0 figs/images/torquay/park_tq_veg* figs/animations/park_tq_veg_growth.gif')
+system('convert -delay 50 -dispose previous -loop 0 figs/images/torquay/*.png figs/animations/park_tq_veg_growth.gif')
 
 # Load results file
 load(file = "output/torquay/park_tq_results")
@@ -66,6 +69,10 @@ load(file = "output/torquay/park_tq_results")
 create_score_sheet(analysis_results = park_tq_results,
                                path_directory = "figs/web/torquay/",
                                title = "GREENSPACE")
+create_score_sheet(analysis_results = park_tq_results,
+                   path_directory = "figs/pdf/torquay/",
+                   title = "GREENSPACE",
+                   web_based = FALSE)
 
 # Plot changes in coverage and connectivity over time
 png("figs/images/torquay/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
@@ -90,7 +97,10 @@ load(file = "output/averley/park_av_years_1_30")
 export_image_set(park_av_years_1_30, path = "output/averley/", filename = "park_av_veg_structure")
 
 # Create spatial outputs
-create_images(park_av_years_1_30, path = "figs/images/averley/", filename = "park_av_veg_structure")
+create_images(park_av_years_1_30,
+              path = "figs/images/averley/",
+              filename = "park_av_veg_structure",
+              pdf_target = "year_10")
 
 # Animate spatial outputs
 system('convert -delay 50 -dispose previous -loop 0 figs/images/averley/park_av_veg* figs/animations/park_av_veg_growth.gif')
@@ -102,6 +112,10 @@ load(file = "output/averley/park_av_results")
 create_score_sheet(analysis_results = park_av_results,
                                path_directory = "figs/web/averley/",
                                title = "NEIGHBOURHOOD PARK")
+create_score_sheet(analysis_results = park_av_results,
+                   path_directory = "figs/pdf/averley/",
+                   title = "NEIGHBOURHOOD PARK",
+                   web_based = FALSE)
 
 # Plot changes in coverage and connectivity over time
 png("figs/images/averley/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
@@ -126,7 +140,10 @@ load(file = "output/booyeembara/park_b_years_1_30")
 export_image_set(park_b_years_1_30, path = "output/booyeembara/", filename = "park_b_veg_structure")
 
 # Create spatial outputs
-create_images(park_b_years_1_30, path = "figs/images/booyeembara/", filename = "park_b_veg_structure")
+create_images(park_b_years_1_30,
+              path = "figs/images/booyeembara/",
+              filename = "park_b_veg_structure",
+              pdf_target = "year_10")
 
 # Animate spatial outputs
 system('convert -delay 50 -dispose previous -loop 0 figs/images/booyeembara/park_b_veg* figs/animations/park_b_veg_growth.gif')
@@ -138,6 +155,10 @@ load(file = "output/booyeembara/park_b_results")
 create_score_sheet(analysis_results = park_b_results,
                                path_directory = "figs/web/booyeembara/",
                                title = "BUSHLAND")
+create_score_sheet(analysis_results = park_b_results,
+                   path_directory = "figs/pdf/booyeembara/",
+                   title = "BUSHLAND",
+                   web_based = FALSE)
 
 # Plot changes in coverage and connectivity over time
 png("figs/images/booyeembara/cov_conn_change.png", height = 400, width = 600, pointsize = 4, res = 150)
@@ -146,21 +167,24 @@ dev.off()
 
 #####################################################################
 
+# Combine scorecard metrics across multiple sites. Note, the pdf images must be
+# created using the "create_score_sheet" with "web_based" set to FALSE
 metrics <- c("connectivity", "coverage", "density", "endemism", "phenology", "richness", "size", "texture")
 for (i in metrics) {
   combine_score_sheet_images(metric = i,
+                             analysis_results_list = list(park_tq_results, park_av_results, park_b_results),
+                             path_directory = "figs/images/",
                              nrows = 1,
                              ncols = 3,
-                             paths = c("figs/web/torquay/",
-                                       "figs/web/averley/",
-                                       "figs/web/booyeembara/"),
                              titles = c("Greenspace", "Neighborhood Park", "Bushland"))
 }
 
 # Plot changes in connectivity over time for all sites
-png("figs/images/conn_change.png", height = 600, width = 800, pointsize = 4, res = 150)
-plot_temporal_change(analysis_results_list = list(park_tq_results, park_av_results, park_b_results),
-                     variable = "connectivity",
+png("figs/images/conn_change.png", height = 1800, width = 2400, pointsize = 10, res = 300)
+plot_temporal_change(metric = "connectivity",
+                     analysis_results_list = list(park_tq_results, park_av_results, park_b_results),
+                     nrows = 1,
+                     ncols = 3,
                      titles = c("Greenspace", "Neighborhood Park", "Bushland"))
 dev.off()
 

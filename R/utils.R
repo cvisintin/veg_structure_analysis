@@ -141,14 +141,14 @@ analyse_spatial_data <- function(spatial_points, spatial_list) {
     })
     connectivity_score <- base::round(mean(connectivity_data) * 100)
     
-    output[[i]] <- list("density_data" = density_data, "size_data" = size_data,
-                        "texture_data" = texture_data, "endemism_data" = endemism_data,
-                        "richness_data" = richness_data, "phenology_data" = phenology_data,
-                        "coverage_data" = coverage_data, "connectivity_data" = connectivity_data,
-                        "density_score" = density_score, "size_score" = size_score,
-                        "texture_score" = texture_score, "endemism_score" = endemism_score,
-                        "richness_score" = richness_score, "phenology_score" = phenology_score,
-                        "coverage_score" = coverage_score, "connectivity_score" = connectivity_score)
+    output[[i]] <- list(density_data = density_data, size_data = size_data,
+                        texture_data = texture_data, endemism_data = endemism_data,
+                        richness_data = richness_data, phenology_data = phenology_data,
+                        coverage_data = coverage_data, connectivity_data = connectivity_data,
+                        density_score = density_score, size_score = size_score,
+                        texture_score = texture_score, endemism_score = endemism_score,
+                        richness_score = richness_score, phenology_score = phenology_score,
+                        coverage_score = coverage_score, connectivity_score = connectivity_score)
     
   }
   output
@@ -191,45 +191,53 @@ check_spatial_input <- function(point_locations, polygon_locations = NULL) {
 
 # Combine scorecard images into panels for comparison. Note, 'create_interactive_scorecard'
 # must be run first to access the images.
-combine_score_sheet_images <- function(metric, nrows, ncols, paths, titles = NULL) {
-  files <- paste0(paths, metric, ".png")
-  plot_list <- lapply(files, function(x) {
-    img <- as.raster(readPNG(x))
-    rasterGrob(img, interpolate = FALSE)
-  })
+combine_score_sheet_images <- function(metric,
+                                       analysis_results_list,
+                                       path_directory,
+                                       nrows = NULL,
+                                       ncols = NULL,
+                                       width = 21,
+                                       height = 7,
+                                       titles = NULL) {
   
-  res_height <- dim(plot_list[[1]]$raster)[1] * nrows
-  res_width <- dim(plot_list[[1]]$raster)[2] * ncols
+  n_scenarios <- length(analysis_results_list)
+  all_plots <- lapply(1:n_scenarios, function (x) {
+    create_score_sheet(analysis_results = analysis_results_list[[x]],
+                       web_based = FALSE,
+                       make_plot = FALSE)
+  })
+  plot_list <- sapply(all_plots, '[', metric)
+  
   row_heights <- rep(1, nrows)
   
   if(!is.null(titles)) {
     text_list <- lapply(titles, function(x) {
-      textGrob(x, gp = gpar(fontsize = 6, fontface = "bold"))
+      textGrob(x, gp = gpar(fontsize = 10, fontface = "bold"))
     })
     
     plot_list <- c(text_list, plot_list)
     
     nrows <- nrows + 1
-    res_height <- res_height * 1.1
+    height <- height * 1.1
     row_heights <- c(0.1, row_heights)
   }
   
-  ggsave(paste0("figs/images/all_", metric, ".png"),
-         width = res_width,
-         height = res_height,
-         units = "px",
+  ggsave(paste0(path_directory, "all_", metric, ".pdf"),
+         width = width,
+         height = height,
+         units = "cm",
          arrangeGrob(grobs = plot_list,
                      nrow = nrows,
                      ncol = ncols,
                      top =  NULL,
-                     heights = row_heights, 
+                     heights = row_heights,
                      layout_matrix = matrix(seq_len(length(plot_list)), nrow = nrows, byrow = TRUE)))
 }
 
 
 # Create axonometric images of grids showing proportional coverage of vegetation
 # at specified heights and for all specified timesteps 
-create_images <- function(spatial_list, path, filename) {
+create_images <- function(spatial_list, path, filename, pdf_target = NULL) {
   
   # Extract unique years from file list
   years <- names(spatial_list)
@@ -240,6 +248,7 @@ create_images <- function(spatial_list, path, filename) {
   cut_heights <- as.numeric(substr(cut_heights, (nchar(cut_heights) + 1) - 4, nchar(cut_heights))) / 100
   
   sapply(seq_len(n_years), function(j) {
+    print(paste0("Processing year ", j))
     
     spatial_year <- spatial_list[[j]]
     
@@ -254,21 +263,22 @@ create_images <- function(spatial_list, path, filename) {
       spatial_data <- rotate_data(spatial_data)
       
       # Set annotation position
-      x <- st_bbox(spatial_data)[3] #* 0.999995
+      x <- st_bbox(spatial_data)[3]
       y <- st_bbox(spatial_data)[2] * 1.000001
       x2 <- st_bbox(spatial_data)[1]
       y2 <- st_bbox(spatial_data)[4]
       
       # Create plot of proportional overlap grid at currently specified height
       plot_list[[i]] <- ggplot() +
-        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray40', lwd = 0.03, show.legend = FALSE) +
-        annotate("text",
+        geom_sf(data = spatial_data, aes(fill = prop_ol), color = 'gray40', linewidth = 0.03, show.legend = FALSE) +
+        annotate("label",
                  label = paste0(cut_heights[i], " m"),
                  x = x ,
                  y = y,
                  hjust = "inward",
                  color = 'gray20',
-                 size = 1,
+                 fill = "white",
+                 size = 2,
                  fontface = "bold") +
         {if(i == length(spatial_year)) annotate("text",
                                                 label = paste0("Year ", j),
@@ -276,17 +286,31 @@ create_images <- function(spatial_list, path, filename) {
                                                 y = y2,
                                                 hjust = "inward",
                                                 color = 'gray20',
-                                                size = 1,
+                                                size = 2,
                                                 fontface = "bold")} +
         scale_fill_viridis_c(option = 'E', na.value = "transparent") +
         theme_void()
       
     } 
     
+    # Stack plots
+    s_plot <- grid.arrange(grobs = rev(plot_list), ncol = 1)
+    
     # Write out PNG of overlap grids for all heights
-    png(paste0(path, filename, "_", years[j], ".png"), height = 150 * length(spatial_year), width = 400, pointsize = 12, res = 300)
+    
+    png(paste0(path, filename, "_", years[j], ".png"), height = 300 * length(spatial_year), width = 900, pointsize = 12, res = 300)
     grid.arrange(grobs = rev(plot_list), ncol = 1)
     dev.off()
+    
+    if(!is.null(pdf_target) & years[j] %in% pdf_target) {
+        ggsave(paste0(path, filename, "_", years[j], ".pdf"),
+               plot = s_plot,
+               height = 2 * length(spatial_year),
+               width = 8,
+               units = "cm",
+               bg = "white",
+               device = cairo_pdf)
+    }
     
     NULL # Because function is not meant to return anything
   })
@@ -390,48 +414,57 @@ create_grid <- function(boundary, # Boundary to create grid cells over
 create_score_sheet <- function(analysis_results,
                                path_directory,
                                title,
-                               web_based = TRUE) {
+                               web_based = TRUE,
+                               make_plot = TRUE) {
   
   ### Density ###
   print("Preparing density plot...")
-  if(web_based) png(paste0(path_directory, "density.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  if(!web_based) pdf(paste0(path_directory, "density.pdf"), height = 4, width = 4, pointsize = 4)
-  print(plot_classes(analysis_results = analysis_results,
-                     variable_name = "density",
-                     colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
-                     image_path = "data/images/leaves_icon.png"))
-  dev.off()
+  p_dens <- plot_classes(analysis_results = analysis_results,
+                         variable_name = "density",
+                         colour_palette = c("#397d53", "#b7e4c8", "#62a67c"),
+                         image_path = "data/images/leaves_icon.png")
+  if(web_based & make_plot == TRUE) {
+    png(paste0(path_directory, "density.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(p_dens)
+    dev.off()
+  }
   
   ### Size ###
   print("Preparing sizes plot...")
-  if(web_based) png(paste0(path_directory, "size.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  if(!web_based) pdf(paste0(path_directory, "size.pdf"), height = 4, width = 4, pointsize = 4)
-  print(plot_classes(analysis_results = analysis_results,
-                     variable_name = "size",
-                     colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
-                     image_path = "data/images/vegetation_icon.png"))
-  dev.off()
+  p_size <- plot_classes(analysis_results = analysis_results,
+                         variable_name = "size",
+                         colour_palette = c("#b8641d", "#ebc5a4", "#d9a171", "#c98449"),
+                         image_path = "data/images/vegetation_icon.png")
+  if(web_based & make_plot == TRUE) {
+    png(paste0(path_directory, "size.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(p_size)
+    dev.off()
+  }
   
   ### Texture ###
   print("Preparing texture plot...")
-  if(web_based) png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  if(!web_based) pdf(paste0(path_directory, "texture.pdf"), height = 4, width = 4, pointsize = 4)
-  print(plot_classes(analysis_results = analysis_results,
-                     variable_name = "texture",
-                     colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
-                     image_path = "data/images/texture_icon.png"))
-  dev.off()
+  p_tex <- plot_classes(analysis_results = analysis_results,
+                        variable_name = "texture",
+                        colour_palette = c("#4b6c90", "#afc6e0", "#6d8eb3"),
+                        image_path = "data/images/texture_icon.png")
+  if(web_based & make_plot == TRUE) {
+    png(paste0(path_directory, "texture.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(p_tex)
+    dev.off()
+  }
   
   ### Endemism ###
   print("Preparing endemism plot...")
-  if(web_based) png(paste0(path_directory, "endemism.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  if(!web_based) pdf(paste0(path_directory, "endemism.pdf"), height = 4, width = 4, pointsize = 4)
-  print(plot_percent(analysis_results = analysis_results,
-                     variable_name = "endemism",
-                     target_value = "native",
-                     colour = "#a072a6",
-                     label = "ENDEMISM"))
-  dev.off()
+  p_end <- plot_percent(analysis_results = analysis_results,
+                        variable_name = "endemism",
+                        target_value = "native",
+                        colour = "#a072a6",
+                        label = "ENDEMISM")
+  if(web_based & make_plot == TRUE) {
+    png(paste0(path_directory, "endemism.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(p_end)
+    dev.off()
+  }
   
   # ### Distribution ###
   # print("Preparing distribution plot...")
@@ -445,51 +478,61 @@ create_score_sheet <- function(analysis_results,
   
   ### Species richness ###
   print("Preparing species plot...")
-  if(web_based) png(paste0(path_directory, "richness.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  if(!web_based) pdf(paste0(path_directory, "richness.pdf"), height = 4, width = 4, pointsize = 4)
-  print(plot_circ_bar(analysis_results = analysis_results,
-                      variable_name = "richness",
-                      colours = "#a6976d",
-                      polar_rotation = 0.25))
-  dev.off()
+  p_spec <- plot_circ_bar(analysis_results = analysis_results,
+                          variable_name = "richness",
+                          colours = "#a6976d",
+                          polar_rotation = 0.25)
+  if(web_based & make_plot == TRUE) {
+    png(paste0(path_directory, "richness.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(p_spec)
+    dev.off()
+  }
   
   ### Phenology ###
   print("Preparing phenology plot...")
-  if(web_based) png(paste0(path_directory, "phenology.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  if(!web_based) pdf(paste0(path_directory, "phenology.pdf"), height = 4, width = 4, pointsize = 4)
-  print(plot_circ_bar(analysis_results = analysis_results,
-                      variable_name = "phenology",
-                      colours = "#b0d4d6",
-                      polar_rotation = 0.25))
-  dev.off()
+  p_phen <- plot_circ_bar(analysis_results = analysis_results,
+                          variable_name = "phenology",
+                          colours = "#b0d4d6",
+                          polar_rotation = 0.25)
+  if(web_based & make_plot == TRUE) {
+    png(paste0(path_directory, "phenology.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(p_phen)
+    dev.off()
+  }
   
   ### Coverage at 1m ###
   print("Preparing coverage plot...")
-  if(web_based) png(paste0(path_directory, "coverage.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  if(!web_based) pdf(paste0(path_directory, "coverage.pdf"), height = 4, width = 4, pointsize = 4)
-  print(plot_circ_bar(analysis_results = analysis_results,
-                      variable_name = "coverage",
-                      colours = "#c9837d"))
-  dev.off()
+  p_cov <- plot_circ_bar(analysis_results = analysis_results,
+                         variable_name = "coverage",
+                         colours = "#c9837d")
+  if(web_based & make_plot == TRUE) {
+    png(paste0(path_directory, "coverage.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(p_cov)
+    dev.off()
+  }
   
   ### Connectivity ###
   print("Preparing connectivity plot...")
-  if(web_based) png(paste0(path_directory, "connectivity.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  if(!web_based) pdf(paste0(path_directory, "connectivity.pdf"), height = 4, width = 4, pointsize = 4)
-  print(plot_circ_bar(analysis_results = analysis_results,
-                      variable_name = "connectivity",
-                      stacked = TRUE))
-  dev.off()
+  p_con <- plot_circ_bar(analysis_results = analysis_results,
+                         variable_name = "connectivity",
+                         stacked = TRUE)
+  if(web_based & make_plot == TRUE) {
+    png(paste0(path_directory, "connectivity.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(p_con)
+    dev.off()
+  }
   
   print("Calculating total score.")
   score_names <- ls(pattern = "_score$", envir = .GlobalEnv)
   total_score <- base::round(mean(sapply(score_names, function(x) as.numeric(get(x)))))
-  if(web_based) png(paste0(path_directory, "total.png"), height = 400, width = 400, pointsize = 4, res = 150)
-  if(!web_based) pdf(paste0(path_directory, "total.pdf"), height = 4, width = 4, pointsize = 4)
-  dial_plot(value = total_score)
-  dev.off()
+  p_tot <- dial_plot(value = total_score)
+  if(web_based & make_plot == TRUE) {
+    png(paste0(path_directory, "total.png"), height = 400, width = 400, pointsize = 4, res = 150)
+    print(dial_plot(value = total_score))
+    dev.off()
+  }
   
-  if(web_based){
+  if(web_based & make_plot == TRUE){
     print("Creating score sheet.")
     if (file.exists(paste0(path_directory, "index.html"))) {
       file.remove(paste0(path_directory, "index.html"))
@@ -631,6 +674,26 @@ create_score_sheet <- function(analysis_results,
     #   file.copy("data/index_full.html", paste0(path_directory, "index.html"), overwrite = TRUE)
     # }
   }
+  
+  if(!web_based & make_plot == TRUE){
+    # ml <- marrangeGrob(list(p_dens, p_size, p_tex,
+    #                         p_end, p_tot, p_spec,
+    #                         p_cov, p_phen, p_con),
+    #                    nrow = 3, ncol = 3)
+    p_grid <- grid.arrange(p_dens, p_size, p_tex,
+                           p_end, p_tot, p_spec,
+                           p_cov, p_phen, p_con,
+                           nrow = 3, ncol = 3)
+    ggsave(paste0(path_directory, "scoresheet.pdf"), plot = p_grid,
+           height = 24, width = 24, units = "cm")
+    # pdf(paste0(path_directory, "scoresheet.pdf"), height = 4, width = 4, pointsize = 4)
+    
+  }
+  if(make_plot == FALSE) {
+    list(density = p_dens, size = p_size, texture = p_tex, endemism = p_end,
+         richness = p_spec, coverage = p_cov, phenology = p_phen, connectivity = p_con)
+  }
+  
 }
 
 
@@ -661,118 +724,108 @@ convert_combine <- function(point_locations, # Spatial geometry and attributes o
 
 
 # Create a dial plot
-# Original code by Gaston Sanchez   http://www.r-bloggers.com/gauge-chart-in-r/
+# Adapted from original code by Gaston Sanchez:
+# http://www.r-bloggers.com/gauge-chart-in-r/
 dial_plot <- function(label = "", value = 50, dial.radius = 1,
                       value.cex = 4, value.color = "black",
                       label.cex = 1, label.color = "black",
                       gage.bg.color = "white",
                       needle.color = "black", needle.center.color = "white",
-                      needle.center.cex = 1, dial.digits.color = "black",
+                      needle.center.cex = 2, dial.digits.color = "black",
                       heavy.border.color = "gray40", thin.border.color = "black",
-                      minor.ticks.color = "black", major.ticks.color = "black")
-{
+                      minor.ticks.color = "black", major.ticks.color = "black") {
   
-  whiteFrom = 0
-  whiteTo = 100
-  
-  # function to create a circle
-  circle <- function(center = c(0,0), radius = 1, npoints = 100)
-  {
-    r = radius
-    tt = seq(0, 2 * pi, length = npoints)
-    xx = center[1] + r * cos(tt)
-    yy = center[2] + r * sin(tt)
-    return(data.frame(x = xx, y = yy))
+  # helper: circle
+  circle_df <- function(center = c(0,0), radius = 1, n = 200) {
+    t <- seq(0, 2*pi, length.out = n)
+    data.frame(x = center[1] + radius * cos(t),
+               y = center[2] + radius * sin(t))
   }
   
-  # function to get slices
-  slice2xy <- function(t, rad)
-  {
-    t2p = -1 * t * pi + 10 * pi / 8
-    list(x = rad * cos(t2p), y = rad * sin(t2p))
+  # helper: ticks (returns x,y)
+  tick_coords <- function(from, to, radius, n) {
+    t <- seq(from, to, length.out = n)
+    data.frame(x = radius * cos(t),
+               y = radius * sin(t),
+               angle = t)
   }
   
-  # function to get major and minor tick marks
-  ticks <- function(center = c(0,0), from = 0, to = 2 * pi, radius = 0.9, npoints = 5)
-  {
-    r = radius
-    tt = seq(from, to, length = npoints)
-    xx = center[1] + r * cos(tt)
-    yy = center[1] + r * sin(tt)
-    return(data.frame(x = xx, y = yy))
-  }
+  start <- 5 * pi / 4
+  end   <- -pi / 4
   
-  # external circle (this will be used for the black border)
-  border_cir = circle(c(0,0), radius = dial.radius, npoints = 100)
+  border <- circle_df(radius = dial.radius)
+  inner  <- circle_df(radius = dial.radius * 0.98)
+  score <- circle_df(center = c(0, (dial.radius * -0.65)), radius = dial.radius * 0.22)
   
-  # open plot
-  plot(border_cir$x, border_cir$y, type = "n", asp = 1, axes = FALSE,
-       xlim = c(-1, 1), ylim = c(-1, 1),
-       xlab = "", ylab = "")
+  minor_out <- tick_coords(start, end, dial.radius * 0.89, 21)
+  minor_in  <- tick_coords(start, end, dial.radius * 0.85, 21)
+  minor_df  <- data.frame(x = minor_out$x, y = minor_out$y,
+                          xend = minor_in$x, yend = minor_in$y)
   
-  # gray border circle
-  external_cir = circle(c(0, 0), radius = (dial.radius * 0.98), npoints = 100)
-  # initial gage background
-  polygon(external_cir$x, external_cir$y,
-          border = gage.bg.color, col = gage.bg.color, lty = NULL)
+  major_out <- tick_coords(start, end, dial.radius * 0.90, 5)
+  major_in  <- tick_coords(start, end, dial.radius * 0.77, 5)
+  major_df  <- data.frame(x = major_out$x, y = major_out$y,
+                          xend = major_in$x, yend = major_in$y)
   
-  # add gray border
-  lines(external_cir$x, external_cir$y, col = heavy.border.color, lwd = 12)
-  # add external border
-  lines(border_cir$x, border_cir$y, col = thin.border.color, lwd = 2)
+  label_pos <- tick_coords(start, end, dial.radius * 0.65, 5)
+  dial.labels <- c("0", "25", "50", "75", "100")
+  label_pos$label <- dial.labels
   
-  # calc and plot minor ticks
-  minor.tix.out <- ticks(c(0 ,0), from = 5 * pi / 4, to = -pi / 4, radius = (dial.radius * 0.89), 21)
-  minor.tix.in <- ticks(c(0, 0), from = 5 * pi / 4, to = -pi / 4, radius = (dial.radius * 0.85), 21)
-  arrows(x0 = minor.tix.out$x, y0 = minor.tix.out$y, x1 = minor.tix.in$x, y1 = minor.tix.in$y,
-         length = 0, lwd = 1.5, col = minor.ticks.color)
+  # needle geometry (same math as original)
+  val_angle <- -1 * (value / 100) * (pi * 12 / 8) + 10 * pi / 8
+  needle_length <- dial.radius * 0.67
+  needle_short  <- dial.radius * 0.1
+  needle_side   <- dial.radius * 0.05
   
-  # coordinates of major ticks (will be plotted as arrows)
-  major_ticks_out = ticks(c(0, 0), from = 5 * pi / 4, to = -pi / 4, radius = (dial.radius * 0.9), 5)
-  major_ticks_in= ticks(c(0, 0), from = 5 * pi / 4, to = -pi / 4, radius = (dial.radius * 0.77), 5)
-  arrows(x0 = major_ticks_out$x, y0 = major_ticks_out$y, col = major.ticks.color,
-         x1 = major_ticks_in$x, y1 = major_ticks_in$y, length = 0, lwd = 3)
+  needle <- data.frame(
+    x = c(
+      needle_length * cos(val_angle),
+      needle_side * cos(val_angle - pi/2),
+      -needle_short * cos(val_angle),
+      needle_side * cos(val_angle + pi/2)
+    ),
+    y = c(
+      needle_length * sin(val_angle),
+      needle_side * sin(val_angle - pi/2),
+      -needle_short * sin(val_angle),
+      needle_side * sin(val_angle + pi/2)
+    )
+  )
   
-  # calc and plot numbers at major ticks
-  dial.numbers <- ticks(c(0,0), from = 5*pi/4, to = -pi/4, radius = ( dial.radius * 0.65 ), 5)
-  dial.lables <- c("0", "25", "50", "75", "100")
-  text(dial.numbers$x, dial.numbers$y, labels = dial.lables, col = dial.digits.color, cex = 1.5)
-  
-  # Add dial labels
-  text(0, (dial.radius * -0.65), value, cex = value.cex, col = value.color)
-  label_cir = circle(center = c(0, (dial.radius * -0.65)), radius = dial.radius * 0.22, npoints = 100)
-  lines(label_cir$x, label_cir$y, col = "black", lwd = 1)
-  # add label of variable
-  text(0, (dial.radius * 0.43), label, cex = label.cex, col = label.color)
-  text(0, (dial.radius * -0.30), "TOTAL SCORE", cex = label.cex * 1.6, col = label.color)
-  
-  # add needle
-  # angle of needle pointing to the specified value
-  val = (value / 100) * (12 / 8)
-  v = -1 * val * pi + 10 * pi / 8 # 10/8 becuase we are drawing on only %80 of the cir
-  # x-y coordinates of needle
-  needle.length <- dial.radius * 0.67
-  needle.end.x = needle.length * cos(v)
-  needle.end.y = needle.length * sin(v)
-  
-  needle.short.length <- dial.radius * 0.1
-  needle.short.end.x = needle.short.length * -cos(v)
-  needle.short.end.y = needle.short.length * -sin(v)
-  
-  needle.side.length <- dial.radius * 0.05
-  needle.side1.end.x = needle.side.length * cos(v - pi / 2) 
-  needle.side1.end.y = needle.side.length * sin(v - pi / 2)
-  needle.side2.end.x = needle.side.length * cos(v + pi / 2) 
-  needle.side2.end.y = needle.side.length * sin(v + pi / 2)
-  
-  needle.x.points <- c(needle.end.x, needle.side1.end.x, needle.short.end.x, needle.side2.end.x)
-  needle.y.points <- c(needle.end.y, needle.side1.end.y, needle.short.end.y, needle.side2.end.y)
-  polygon(needle.x.points, needle.y.points, col = needle.color)
-  
-  # add central needle point
-  points(0, 0, col = needle.center.color, pch = 20, cex = needle.center.cex)
+  ggplot() +
+    # gauge background + thick outer ring
+    geom_polygon(data = inner, aes(x = x, y = y, group = 1),
+                 fill = gage.bg.color, color = heavy.border.color, linewidth = 6) +
+    geom_path(data = border, aes(x = x, y = y, group = 1),
+              color = thin.border.color, size = 1) +
+    
+    # minor + major ticks (use uniquely named columns)
+    geom_segment(data = minor_df, aes(x = x, y = y, xend = xend, yend = yend),
+                 color = minor.ticks.color, size = 0.8) +
+    geom_segment(data = major_df, aes(x = x, y = y, xend = xend, yend = yend),
+                 color = major.ticks.color, size = 2) +
+    
+    # numeric labels at major ticks
+    geom_text(data = label_pos, aes(x = x, y = y, label = label),
+              color = dial.digits.color, size = 5, fontface = "bold") +
+    
+    # value and descriptive labels
+    geom_path(data = score, aes(x = x, y = y, group = 1),
+              color = thin.border.color, size = 0.2) +
+    annotate("text", x = 0, y = -dial.radius * 0.65, label = as.character(value),
+             color = value.color, size = value.cex * 2) +
+    annotate("text", x = 0, y = dial.radius * 0.43, label = label,
+             color = label.color, size = label.cex * 4) +
+    annotate("text", x = 0, y = -dial.radius * 0.30, label = "TOTAL SCORE",
+             color = label.color, size = label.cex * 3) +
+    
+    # needle + center cap
+    geom_polygon(data = needle, aes(x = x, y = y, group = 1), fill = needle.color) +
+    geom_point(aes(x = 0, y = 0), color = needle.center.color, size = needle.center.cex) +
+    
+    coord_fixed(xlim = c(-1, 1), ylim = c(-1, 1)) +
+    theme_void()
 }
-
 
 # Estimate how well the site vegetation is connected using a threshold value
 # for proportion of vegetation coverage in each cell
@@ -1320,11 +1373,11 @@ plot_percent <- function(analysis_results,
 
 # Plot change in variable over simulation time period - note all compared
 # scenarios must share the same time period (e.g. number of years) 
-plot_temporal_change <- function(analysis_results_list,
+plot_temporal_change <- function(metric,
+                                 analysis_results_list,
                                  colours = c("indianred4",
                                              "steelblue",
                                              "darkseagreen4"),
-                                 variable,
                                  titles = NULL) {
   
   if(!is.null(titles) & length(titles) != length(analysis_results_list)) {
@@ -1339,7 +1392,7 @@ plot_temporal_change <- function(analysis_results_list,
   data$year <- seq_len(n_years)
   for(i in seq_len(n_scenarios)) {
     data[ , i + 1] <- sapply(seq_len(n_years),
-                             function(x) mean(analysis_results_list[[i]][[x]][[paste0(variable, "_data")]]) * 100)
+                             function(x) mean(analysis_results_list[[i]][[x]][[paste0(metric, "_data")]]) * 100)
   }
   data <- rbind(rep(0, n_scenarios + 1), data)
   
@@ -1347,11 +1400,12 @@ plot_temporal_change <- function(analysis_results_list,
   y_pos <- sapply(seq_len(n_scenarios), function(x) max(data[ , x + 1]) * 0.98)
   # Make the plot
   p <- ggplot(data, aes(ymax = y_max, ymin = 0, xmax = n_years, xmin = 0)) +
-    ylab(paste0("Relative Score (", variable, ")")) +
+    ylab(paste0("Relative Score (", metric, ")")) +
     xlab("Timestep") +
     
     theme_minimal() +
-    theme(legend.position = "none")
+    theme(legend.position = "none",
+          text = element_text(size = 20))
   for(i in rev(seq_len(n_scenarios))) {
     p <- p + 
       geom_ribbon(aes(x = year, ymax = !!sym(scenario_names[i]),
@@ -1361,7 +1415,7 @@ plot_temporal_change <- function(analysis_results_list,
   for(i in rev(seq_len(n_scenarios))) {
     p <- p +
       annotate('text', x = x_pos, y = y_pos[i], label = titles[i],
-               color = colours[i], size = 2, fontface = 'bold', hjust = 0)
+               color = colours[i], size = 5, fontface = 'bold', hjust = 0)
   }
   p
 }
